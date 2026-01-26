@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Organizer</title>
+    <!-- Google Fonts & Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+    <!-- PDF Libraries -->
+    <!-- PDF Libraries moved to bottom -->
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+</head>
+
+<body>
+
+    <header class="app-bar">
+        <div class="container">
+            <h1><i class="material-icons">description</i> PDF Organizer</h1>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Mode Selection Screen -->
+        <section id="mode-selection" class="mode-selection">
+            <h2>作業を選択してください</h2>
+            <div class="mode-cards">
+                <!-- Row 1 -->
+                <div class="mode-card" data-mode="merge">
+                    <i class="material-icons">merge_type</i>
+                    <h3>結合 (Merge)</h3>
+                    <p>複数のPDFを1つにまとめます</p>
+                </div>
+                <div class="mode-card" data-mode="split">
+                    <i class="material-icons">content_cut</i>
+                    <h3>分割・抽出 (Split)</h3>
+                    <p>必要なページだけを選んで保存します</p>
+                </div>
+                <div class="mode-card" data-mode="reorder">
+                    <i class="material-icons">rotate_right</i>
+                    <h3>並べ替え・回転</h3>
+                    <p>順序変更やページの回転を行います</p>
+                </div>
+                <!-- Row 2 -->
+                <div class="mode-card" data-mode="img2pdf">
+                    <i class="material-icons">image</i>
+                    <h3>画像をPDFに</h3>
+                    <p>画像をまとめてPDF変換します</p>
+                </div>
+                <div class="mode-card" data-mode="pdf2img">
+                    <i class="material-icons">photo_library</i>
+                    <h3>PDFを画像に</h3>
+                    <p>ページを画像として一括ダウンロード</p>
+                </div>
+                <div class="mode-card" data-mode="security">
+                    <i class="material-icons">lock</i>
+                    <h3>セキュリティ</h3>
+                    <p>PDFにパスワードを設定します</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workspace (Hidden initially) -->
+        <div id="workspace" class="hidden">
+            <div class="workspace-header">
+                <button id="btn-back" class="btn is-text"><i class="material-icons">arrow_back</i> 戻る</button>
+                <h2 id="workspace-title">...</h2>
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <section id="drop-zone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <i class="material-icons large-icon">cloud_upload</i>
+                    <h2>PDFファイルをここにドラッグ＆ドロップ</h2>
+                    <p>または</p>
+                    <label for="file-input" class="btn is-primary">
+                        ファイルを選択
+                        <input type="file" id="file-input" accept=".pdf" multiple hidden>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Toolbar (Hidden initially) -->
+            <section id="toolbar" class="toolbar hidden">
+                <div class="toolbar-actions">
+                    <!-- Buttons will be injected/shown based on mode -->
+                    <div id="action-buttons"></div>
+                    <div class="spacer"></div>
+                    <button id="btn-clear" class="btn is-text">
+                        <i class="material-icons">delete_sweep</i> 全て削除
+                    </button>
+                </div>
+            </section>
+
+            <!-- Preview Grid -->
+            <section id="preview-area" class="preview-area">
+                <!-- Thumbnails will be injected here via JS -->
+            </section>
+        </div>
+
+    </main>
+
+    <!-- Zoom Modal -->
+    <div id="zoom-modal" class="modal hidden">
+        <div class="modal-content">
+            <span id="close-modal" class="close-btn">&times;</span>
+            <canvas id="zoom-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Password Modal -->
+    <div id="password-modal" class="modal hidden">
+        <div class="modal-content" style="flex-direction: column; gap: 20px; min-width: 300px;">
+            <h3>パスワード設定</h3>
+            <p>PDFを開く際のパスワードを入力してください。<br><small>※空欄のまま保存するとパスワードは設定されません。</small></p>
+            <input type="password" id="pdf-password" placeholder="パスワード"
+                style="padding: 10px; width: 100%; box-sizing: border-box; font-size: 1rem;">
+            <div style="display: flex; gap: 10px; justify-content: flex-end; width: 100%;">
+                <button id="btn-cancel-pass" class="btn is-text">キャンセル</button>
+                <button id="btn-save-pass" class="btn is-primary">保存する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Libraries: Standard pdf-lib -->
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js" crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    <script src="script.js"></script>
+</body>
+
+</html>
