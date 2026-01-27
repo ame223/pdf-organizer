@@ -63,6 +63,11 @@
                     <h3>セキュリティ</h3>
                     <p>PDFにパスワードを設定します</p>
                 </div>
+                <div class="mode-card" data-mode="edit">
+                    <i class="material-icons">edit_note</i>
+                    <h3>PDFを編集</h3>
+                    <p>テキストや図形を追加します</p>
+                </div>
             </div>
         </section>
 
@@ -91,10 +96,40 @@
                 <div class="toolbar-actions">
                     <!-- Buttons will be injected/shown based on mode -->
                     <div id="action-buttons"></div>
+
+                    <!-- Editor Specific Controls (Hidden unless in edit mode) -->
+                    <div id="editor-controls" class="hidden"
+                        style="display: flex; gap: 10px; align-items: center; border-left: 1px solid #ccc; padding-left: 15px; margin-left: 15px;">
+                        <button id="btn-add-text" class="btn is-outlined" title="テキスト追加"><i
+                                class="material-icons">title</i> テキスト</button>
+                        <button id="btn-add-rect" class="btn is-outlined" title="四角形追加"><i
+                                class="material-icons">crop_square</i> 四角</button>
+                        <input type="color" id="editor-color" value="#000000" title="色選択">
+                        <button id="btn-delete-obj" class="btn is-text" title="削除"><i
+                                class="material-icons">delete</i></button>
+                    </div>
+
                     <div class="spacer"></div>
                     <button id="btn-clear" class="btn is-text">
                         <i class="material-icons">delete_sweep</i> 全て削除
                     </button>
+                </div>
+            </section>
+
+            <!-- Editor Area (Canvas) -->
+            <section id="editor-area" class="hidden"
+                style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 30px;">
+                <div class="editor-pagination"
+                    style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
+                    <button id="btn-prev-page" class="btn is-text"><i class="material-icons">chevron_left</i>
+                        前へ</button>
+                    <span id="page-indicator">Page 1 / 1</span>
+                    <button id="btn-next-page" class="btn is-text">次へ <i
+                            class="material-icons">chevron_right</i></button>
+                </div>
+                <!-- Canvas Wrapper with shadow -->
+                <div id="canvas-wrapper" style="box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 1px solid #ccc;">
+                    <canvas id="fabric-canvas"></canvas>
                 </div>
             </section>
 
@@ -130,10 +165,14 @@
 
     <!-- PDF Libraries: Standard pdf-lib -->
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/@pdf-lib/fontkit@0.0.4/dist/fontkit.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js" crossorigin="anonymous"
         referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"
         referrerpolicy="no-referrer"></script>
+    <!-- Fabric.js for Canvas editing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     </script>

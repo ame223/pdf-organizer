@@ -68,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'security':
                 workspaceTitle.textContent = 'セキュリティ (パスワード設定)';
                 break;
+            case 'edit':
+                workspaceTitle.textContent = 'PDFを編集';
+                break;
         }
 
         updateActionButtons();
@@ -120,6 +123,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             btn.className = 'btn is-primary';
             actionButtonsContainer.appendChild(btn);
+        } else if (currentMode === 'edit') {
+            const btn = createButton('save', '編集結果を保存', () => saveHandler());
+            btn.className = 'btn is-primary';
+            actionButtonsContainer.appendChild(btn);
+
+            // Show editor controls
+            editorControls.classList.remove('hidden');
+        } else {
+            editorControls.classList.add('hidden');
         }
     }
 
@@ -155,6 +167,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 await savePDFToImages(allPages, "images.zip");
             }
+        } else if (currentMode === 'pdf2img') {
+            if (isIndividual) {
+                await savePDFToImagesIndividually(allPages);
+            } else {
+                await savePDFToImages(allPages, "images.zip");
+            }
+        } else if (currentMode === 'edit') {
+            await saveEditedPDF();
         }
     }
 
@@ -275,6 +295,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Clear file input value to allow re-selecting same file
         fileInput.value = '';
         fileInput.accept = ".pdf"; // Reset accept
+
+        // Reset Editor
+        editorArea.classList.add('hidden');
+        previewArea.classList.remove('hidden');
+        editorControls.classList.add('hidden');
+        editorPages = [];
+        if (fabricCanvas) {
+            fabricCanvas.dispose();
+            fabricCanvas = null;
+        }
     }
 
     // --- Drag & Drop Events ---
@@ -325,7 +355,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        renderGrid();
+
+        if (currentMode === 'edit') {
+            // For Edit Mode, we only take the FIRST file
+            renderGrid(); // Empty grid or just skip
+
+            // Setup Editor with the first loaded file
+            if (loadedFiles.length > 0) {
+                const file = loadedFiles[0];
+                if (file.type !== 'pdf') {
+                    alert("編集モードはPDFのみ対応しています。");
+                    return;
+                }
+                currentEditorFile = file;
+                currentEditorPdfJsDoc = file.pdfJsDoc;
+
+                // Show Editor Area, Hide Grid
+                previewArea.classList.add('hidden');
+                editorArea.classList.remove('hidden');
+
+                // Init Editor
+                initializeEditor();
+                editorPages = [];
+                loadEditorPage(0);
+            }
+        } else {
+            renderGrid();
+        }
     }
 
     async function processFile(file) {
@@ -767,5 +823,285 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    // ... [Previous code matches] ...
+
+    // --- Editor Elements ---
+    const editorArea = document.getElementById('editor-area');
+    const editorControls = document.getElementById('editor-controls');
+    const btnAddText = document.getElementById('btn-add-text');
+    const btnAddRect = document.getElementById('btn-add-rect');
+    const editorColor = document.getElementById('editor-color');
+    const btnDeleteObj = document.getElementById('btn-delete-obj');
+    const btnPrevPage = document.getElementById('btn-prev-page');
+    const btnNextPage = document.getElementById('btn-next-page');
+    const pageIndicator = document.getElementById('page-indicator');
+
+    // --- Editor State ---
+    let fabricCanvas = null;
+    let editorPages = []; // Stores Fabric JSON state per page: { pageIndex: number, fabricJSON: object }
+    let currentEditorPageIndex = 0;
+    let currentEditorPdfJsDoc = null;
+    let currentEditorFile = null; // The file object being edited
+
+    // --- Editor Logic ---
+    function initializeEditor() {
+        if (!fabricCanvas) {
+            fabricCanvas = new fabric.Canvas('fabric-canvas');
+
+            // Canvas Events
+            fabricCanvas.on('selection:created', updateEditorControls);
+            fabricCanvas.on('selection:updated', updateEditorControls);
+            fabricCanvas.on('selection:cleared', updateEditorControls);
+        }
+    }
+
+    function updateEditorControls() {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            // Update color picker to match active object
+            editorColor.value = activeObj.fill || activeObj.stroke || '#000000';
+            btnDeleteObj.disabled = false;
+        } else {
+            btnDeleteObj.disabled = true;
+        }
+    }
+
+    btnAddText.addEventListener('click', () => {
+        const text = new fabric.IText('テキスト入力', {
+            left: 50,
+            top: 50,
+            fontFamily: 'Noto Sans JP', // Use a font that we can embed
+            fill: editorColor.value,
+            fontSize: 24,
+            originX: 'left',
+            originY: 'top'
+        });
+        fabricCanvas.add(text);
+        fabricCanvas.setActiveObject(text);
+    });
+
+    btnAddRect.addEventListener('click', () => {
+        const rect = new fabric.Rect({
+            left: 100,
+            top: 100,
+            fill: 'transparent',
+            stroke: editorColor.value,
+            strokeWidth: 3,
+            width: 100,
+            height: 100
+        });
+        fabricCanvas.add(rect);
+        fabricCanvas.setActiveObject(rect);
+    });
+
+    editorColor.addEventListener('input', (e) => {
+        const color = e.target.value;
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            if (activeObj.type === 'rect') {
+                activeObj.set('stroke', color);
+            } else {
+                activeObj.set('fill', color);
+            }
+            fabricCanvas.requestRenderAll();
+        }
+    });
+
+    btnDeleteObj.addEventListener('click', () => {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            fabricCanvas.remove(activeObj);
+            fabricCanvas.discardActiveObject();
+            updateEditorControls();
+        }
+    });
+
+    // Pagination Logic for Editor
+    async function loadEditorPage(index) {
+        // Save current page state before switching
+        if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
+            const json = fabricCanvas.toJSON(['id', 'selectable']);
+            delete json.backgroundImage;
+            editorPages[currentEditorPageIndex].fabricJSON = json;
+        }
+
+        currentEditorPageIndex = index;
+        const page = await currentEditorPdfJsDoc.getPage(index + 1);
+        const viewport = page.getViewport({ scale: 1.5 }); // Good resolution for editing
+
+        // Resize Canvas
+        fabricCanvas.setWidth(viewport.width);
+        fabricCanvas.setHeight(viewport.height);
+        fabricCanvas.clear();
+
+        // Render PDF Page to Image
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+        // Use simplified approach for creating Image objects
+        const imgEl = new Image();
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+        imgEl.src = URL.createObjectURL(blob);
+
+        imgEl.onload = () => {
+            const fImg = new fabric.Image(imgEl);
+            // Lock background
+            fImg.set({
+                originX: 'left',
+                originY: 'top',
+                selectable: false,
+                evented: false,
+                width: viewport.width,
+                height: viewport.height
+            });
+
+            fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
+            URL.revokeObjectURL(imgEl.src); // Cleanup
+
+            // Restore Objects
+            if (!editorPages[index]) {
+                editorPages[index] = { pageIndex: index, fabricJSON: null };
+            } else if (editorPages[index].fabricJSON) {
+                // Determine if we have objects to load
+                if (editorPages[index].fabricJSON.objects.length > 0) {
+                    fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
+                        // Re-set background image because loadFromJSON might clear it
+                        fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
+                    });
+                }
+            }
+        };
+
+        // Update UI
+        pageIndicator.textContent = `Page ${index + 1} / ${currentEditorPdfJsDoc.numPages}`;
+        btnPrevPage.disabled = index === 0;
+        btnNextPage.disabled = index === currentEditorPdfJsDoc.numPages - 1;
+    }
+
+    btnPrevPage.addEventListener('click', () => {
+        if (currentEditorPageIndex > 0) {
+            loadEditorPage(currentEditorPageIndex - 1);
+        }
+    });
+
+    btnNextPage.addEventListener('click', () => {
+        if (currentEditorPageIndex < currentEditorPdfJsDoc.numPages - 1) {
+            loadEditorPage(currentEditorPageIndex + 1);
+        }
+    });
+
+    // Override/Extend Save Handler for Edit Mode
+    // Defined inside setMode/saveHandler block or separate? 
+    // Let's integrate into the main saveHandler via conditional, but implementing the logic here.
+
+    async function saveEditedPDF() {
+        // 1. Save current page state final time
+        if (fabricCanvas) {
+            const json = fabricCanvas.toJSON(['id', 'selectable']);
+            delete json.backgroundImage;
+            editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
+        }
+
+        try {
+            const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
+
+            // Register fontkit
+            pdfDoc.registerFontkit(fontkit);
+
+            // Load Japanese Font
+            const fontUrl = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.woff2';
+
+            let customFont = null;
+            try {
+                const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
+                customFont = await pdfDoc.embedFont(fontBytes);
+            } catch (e) {
+                console.warn("Could not load JP font, falling back to standard.", e);
+                alert("日本語フォントの読み込みに失敗しました。標準フォントを使用するため、日本語が文字化けする可能性があります。");
+            }
+
+            const pages = pdfDoc.getPages();
+
+            for (let i = 0; i < pages.length; i++) {
+                if (!editorPages[i] || !editorPages[i].fabricJSON) continue;
+
+                const page = pages[i];
+                const { width, height } = page.getSize(); // PDF Point unit
+
+                // Fabric Canvas Dimensions (Scale 1.5)
+                // We need to scale coordinates back to PDF size (Scale 1.0)
+                const scaleFactor = 1 / 1.5;
+
+                const fabricData = editorPages[i].fabricJSON;
+
+                if (fabricData.objects) {
+                    for (const obj of fabricData.objects) {
+                        // Apply Scale Factor to all coordinates/sizes
+                        const x = obj.left * scaleFactor;
+                        // In PDF-lib, Y is from bottom-left. In Fabric, Y is form top-left.
+                        // We must flip Y.
+                        const objHeight = (obj.height * obj.scaleY) * scaleFactor;
+                        const y = height - (obj.top * scaleFactor) - objHeight;
+
+                        if (obj.type === 'i-text' || obj.type === 'text') {
+                            const fontSize = obj.fontSize * scaleFactor;
+                            // For Text, PDF-Lib Y is usually the baseline or bottom-left of the box depending on font?
+                            // Standard assumption: y is bottom-left of the text line. 
+                            // Fabric 'top' is top of the line height box.
+                            // Adjustment: y += fontSize * 0.8 approximately?
+                            // Let's try standard conversion first.
+                            page.drawText(obj.text, {
+                                x: x,
+                                y: height - (obj.top * scaleFactor) - (fontSize * 0.88), // Empirical adjustment for approximate baseline
+                                size: fontSize,
+                                font: customFont || undefined,
+                                color: hexToRgb(obj.fill),
+                                lineHeight: obj.lineHeight
+                            });
+                        } else if (obj.type === 'rect') {
+                            page.drawRectangle({
+                                x: x,
+                                y: y,
+                                width: (obj.width * obj.scaleX) * scaleFactor,
+                                height: objHeight,
+                                borderColor: hexToRgb(obj.stroke),
+                                borderWidth: obj.strokeWidth * scaleFactor,
+                                color: undefined, // Transparent fill
+                            });
+                        }
+                    }
+                }
+            }
+
+            const pdfBytes = await pdfDoc.save();
+            downloadFile(pdfBytes, "edited_document.pdf");
+
+        } catch (err) {
+            console.error(err);
+            alert("保存に失敗しました: " + err.message);
+        }
+    }
+}
+
+    function hexToRgb(hex) {
+        if (!hex) return undefined;
+        // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+        var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+            return r + r + g + g + b + b;
+        });
+
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? PDFLib.rgb(
+            parseInt(result[1], 16) / 255,
+            parseInt(result[2], 16) / 255,
+            parseInt(result[3], 16) / 255
+        ) : undefined;
     }
 });
