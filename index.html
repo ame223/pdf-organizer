@@ -12,9 +12,7 @@
     <link rel="stylesheet" href="style.css">
     <!-- PDF Libraries -->
     <!-- PDF Libraries moved to bottom -->
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-    </script>
+
 </head>
 
 <body>
@@ -63,6 +61,11 @@
                     <h3>セキュリティ</h3>
                     <p>PDFにパスワードを設定します</p>
                 </div>
+                <div class="mode-card" data-mode="edit">
+                    <i class="material-icons">edit_note</i>
+                    <h3>PDFを編集</h3>
+                    <p>テキストや図形を追加します</p>
+                </div>
             </div>
         </section>
 
@@ -91,10 +94,178 @@
                 <div class="toolbar-actions">
                     <!-- Buttons will be injected/shown based on mode -->
                     <div id="action-buttons"></div>
+
+                    <!-- Editor Specific Controls (Hidden unless in edit mode) -->
+                    <div id="editor-controls" class="hidden"
+                        style="display: flex; gap: 10px; align-items: center; border-left: 1px solid #ccc; padding-left: 15px; margin-left: 15px;">
+                        <button id="btn-add-text" class="btn is-outlined" title="テキスト追加"><i
+                                class="material-icons">title</i> テキスト</button>
+                        <button id="btn-add-rect" class="btn is-outlined" title="四角形追加"><i
+                                class="material-icons">crop_square</i> 四角</button>
+                        <input type="color" id="editor-color" value="#000000" title="色選択">
+                        <button id="btn-delete-obj" class="btn is-text" title="削除"><i
+                                class="material-icons">delete</i></button>
+                    </div>
+
                     <div class="spacer"></div>
                     <button id="btn-clear" class="btn is-text">
                         <i class="material-icons">delete_sweep</i> 全て削除
                     </button>
+                </div>
+            </section>
+
+            <!-- Editor Area (Canvas) -->
+            <section id="editor-area" class="hidden"
+                style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 30px;">
+                <div class="editor-pagination"
+                    style="display: flex; align-items: center; gap: 20px; margin-bottom: 10px;">
+                    <button id="btn-prev-page" class="btn is-text"><i class="material-icons">chevron_left</i>
+                        前へ</button>
+                    <span id="page-indicator">Page 1 / 1</span>
+                    <button id="btn-next-page" class="btn is-text">次へ <i
+                            class="material-icons">chevron_right</i></button>
+                </div>
+                <!-- Canvas Wrapper with shadow -->
+                <div id="canvas-container" style="position: relative;">
+                    <div id="canvas-wrapper" style="box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 1px solid #ccc;">
+                        <canvas id="fabric-canvas"></canvas>
+                    </div>
+
+                    <!-- Floating Toolbar for Contextual Editing -->
+                    <div id="floating-toolbar" class="hidden" style="
+                       position: absolute; 
+                       background: white; 
+                       border-radius: 8px; 
+                       box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                       padding: 8px 12px; 
+                       display: flex; 
+                       gap: 12px; 
+                       align-items: center;
+                       z-index: 100;
+                       border: 1px solid #eee;
+                       flex-wrap: wrap;
+                       max-width: 600px;
+                   ">
+                        <!-- Font Size -->
+                        <div class="toolbar-group">
+                            <i class="material-icons" style="font-size: 18px; color: #555;">format_size</i>
+                            <input type="number" id="float-font-size" value="24" min="8" max="200" title="フォントサイズ"
+                                style="width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Text Style -->
+                        <div class="toolbar-group">
+                            <button id="btn-bold" class="btn-tool" title="太字 (Bold)"><i
+                                    class="material-icons">format_bold</i></button>
+                            <button id="btn-italic" class="btn-tool" title="斜体 (Italic)"><i
+                                    class="material-icons">format_italic</i></button>
+                            <button id="btn-underline" class="btn-tool" title="下線 (Underline)"><i
+                                    class="material-icons">format_underlined</i></button>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Alignment (Dropdown style but inline for now as requested 'like screenshot') -->
+                        <div class="toolbar-group">
+                            <button id="btn-align-left" class="btn-tool" title="左揃え"><i
+                                    class="material-icons">format_align_left</i></button>
+                            <button id="btn-align-center" class="btn-tool" title="中央揃え"><i
+                                    class="material-icons">format_align_center</i></button>
+                            <button id="btn-align-right" class="btn-tool" title="右揃え"><i
+                                    class="material-icons">format_align_right</i></button>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Colors -->
+                        <div class="toolbar-group" style="position: relative;">
+                            <!-- Text Color -->
+                            <div class="tool-wrapper" style="position: relative;">
+                                <button id="btn-text-color-trigger" class="btn-tool" title="文字色">
+                                    <span
+                                        style="font-weight: 900; font-family: 'Times New Roman', serif; font-size: 20px; color: #555; line-height: 1;">A</span>
+                                    <div id="indicator-text-color"
+                                        style="width: 14px; height: 5px; background: #000; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
+                                    </div>
+                                </button>
+                                <!-- Popup -->
+                                <div id="popup-text-color" class="popup-panel hidden">
+                                    <div class="color-presets">
+                                        <button class="color-swatch" data-color="#000000"
+                                            style="background: #000000;"></button>
+                                        <button class="color-swatch" data-color="#F44336"
+                                            style="background: #F44336;"></button>
+                                        <button class="color-swatch" data-color="#2196F3"
+                                            style="background: #2196F3;"></button>
+                                        <button class="color-swatch" data-color="#4CAF50"
+                                            style="background: #4CAF50;"></button>
+                                        <button class="color-swatch" data-color="#FFEB3B"
+                                            style="background: #FFEB3B;"></button>
+                                        <button class="color-swatch" data-color="#9C27B0"
+                                            style="background: #9C27B0;"></button>
+                                        <button class="color-swatch" data-color="#FFFFFF"
+                                            style="background: #FFFFFF; border: 1px solid #ddd;"></button>
+                                    </div>
+                                    <div class="divider-h"></div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 12px; color: #666; white-space: nowrap;">カスタム:</span>
+                                        <input type="color" id="float-text-color" value="#000000"
+                                            style="cursor: pointer; width: 100%;">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bg Color -->
+                            <div class="tool-wrapper" style="position: relative;">
+                                <button id="btn-bg-color-trigger" class="btn-tool" title="背景色">
+                                    <i class="material-icons"
+                                        style="color: #555; font-size: 20px;">format_color_fill</i>
+                                    <div id="indicator-bg-color"
+                                        style="width: 14px; height: 5px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
+                                    </div>
+                                </button>
+                                <!-- Popup -->
+                                <div id="popup-bg-color" class="popup-panel hidden">
+                                    <div class="color-presets">
+                                        <button class="color-swatch swatch-transparent" data-color="transparent"
+                                            title="なし"></button>
+                                        <button class="color-swatch" data-color="#FFFFFF"
+                                            style="background: #FFFFFF; border: 1px solid #ddd;"></button>
+                                        <button class="color-swatch" data-color="#FFEB3B"
+                                            style="background: #FFEB3B;"></button>
+                                        <button class="color-swatch" data-color="#FFCDD2"
+                                            style="background: #FFCDD2;"></button>
+                                        <button class="color-swatch" data-color="#BBDEFB"
+                                            style="background: #BBDEFB;"></button>
+                                        <button class="color-swatch" data-color="#C8E6C9"
+                                            style="background: #C8E6C9;"></button>
+                                        <button class="color-swatch" data-color="#E1BEE7"
+                                            style="background: #E1BEE7;"></button>
+                                    </div>
+                                    <div class="divider-h"></div>
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                        <span style="font-size: 12px; color: #666; white-space: nowrap;">カスタム:</span>
+                                        <input type="color" id="float-bg-color" value="#ffffff"
+                                            style="cursor: pointer; width: 100%;">
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 12px; color: #666; white-space: nowrap;">不透明度:</span>
+                                        <input type="range" id="bg-opacity" min="0" max="1" step="0.1" value="1"
+                                            style="flex: 1;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Delete -->
+                        <button id="float-btn-delete" class="btn-tool delete-btn" title="削除">
+                            <i class="material-icons">delete</i>
+                        </button>
+                    </div>
                 </div>
             </section>
 
@@ -130,10 +301,14 @@
 
     <!-- PDF Libraries: Standard pdf-lib -->
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/@pdf-lib/fontkit@0.0.4/dist/fontkit.umd.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js" crossorigin="anonymous"
         referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"
         referrerpolicy="no-referrer"></script>
+    <!-- Fabric.js for Canvas editing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
     </script>
