@@ -767,8 +767,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function onSelectionChanged(e) {
         const activeObj = e.selected ? e.selected[0] : fabricCanvas.getActiveObject();
         if (activeObj) {
-            showFloatingToolbar(activeObj);
+            // Only show for Text objects
+            if (activeObj.type === 'textbox' || activeObj.type === 'i-text') {
+                showFloatingToolbar(activeObj);
+            } else {
+                hideFloatingToolbar();
+            }
             updateEditorControlsOriginal();
+        } else {
+            hideFloatingToolbar();
         }
     }
 
@@ -788,12 +795,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showFloatingToolbar(obj) {
         if (!obj) return;
-
-        // Show toolbar only for Text objects
-        if (obj.type !== 'textbox' && obj.type !== 'i-text') {
-            floatingToolbar.classList.add('hidden');
-            return;
-        }
 
         floatingToolbar.classList.remove('hidden');
 
