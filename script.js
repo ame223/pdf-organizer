@@ -948,30 +948,31 @@ document.addEventListener('DOMContentLoaded', () => {
         startX = pointer.x;
         startY = pointer.y;
 
-        drawingObject = new fabric.Rect({
-            left: startX,
-            top: startY,
-            width: 0,
-            height: 0,
-            fill: 'rgba(0, 150, 136, 0.2)',
-            stroke: '#009688',
-            strokeWidth: 1,
-            strokeDashArray: [5, 5]
-        });
-        fabricCanvas.add(drawingObject);
-    } else if (currentEditorTool === 'rect') {
-        drawingObject = new fabric.Rect({
-            left: startX,
-            top: startY,
-            width: 0,
-            height: 0,
-            fill: 'transparent',
-            stroke: editorColor.value,
-            strokeWidth: 3
-        });
-        fabricCanvas.add(drawingObject);
+        if (currentEditorTool === 'text') {
+            drawingObject = new fabric.Rect({
+                left: startX,
+                top: startY,
+                width: 0,
+                height: 0,
+                fill: 'rgba(0, 150, 136, 0.2)',
+                stroke: '#009688',
+                strokeWidth: 1,
+                strokeDashArray: [5, 5]
+            });
+            fabricCanvas.add(drawingObject);
+        } else if (currentEditorTool === 'rect') {
+            drawingObject = new fabric.Rect({
+                left: startX,
+                top: startY,
+                width: 0,
+                height: 0,
+                fill: 'transparent',
+                stroke: editorColor.value,
+                strokeWidth: 3
+            });
+            fabricCanvas.add(drawingObject);
+        }
     }
-}
 
     function onMouseMove(o) {
         if (!isDrawing || !drawingObject) return;
@@ -1064,430 +1065,430 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAddRect.classList.add('is-outlined');
     });
 
-btnAddRect.addEventListener('click', () => {
-    currentEditorTool = 'rect';
-    fabricCanvas.defaultCursor = 'crosshair';
-    fabricCanvas.discardActiveObject();
-    fabricCanvas.renderAll();
+    btnAddRect.addEventListener('click', () => {
+        currentEditorTool = 'rect';
+        fabricCanvas.defaultCursor = 'crosshair';
+        fabricCanvas.discardActiveObject();
+        fabricCanvas.renderAll();
 
-    btnAddRect.classList.remove('is-outlined');
-    btnAddRect.classList.add('is-primary');
-    btnAddText.classList.remove('is-primary');
-    btnAddText.classList.add('is-outlined');
-});
+        btnAddRect.classList.remove('is-outlined');
+        btnAddRect.classList.add('is-primary');
+        btnAddText.classList.remove('is-primary');
+        btnAddText.classList.add('is-outlined');
+    });
 
-// --- Toolbar Interaction Handlers ---
+    // --- Toolbar Interaction Handlers ---
 
-// Toggle Popups
-btnTextColorTrigger.addEventListener('click', (e) => {
-    e.stopPropagation();
-    popupBgColor.classList.add('hidden');
-    popupTextColor.classList.toggle('hidden');
-});
+    // Toggle Popups
+    btnTextColorTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popupBgColor.classList.add('hidden');
+        popupTextColor.classList.toggle('hidden');
+    });
 
-btnBgColorTrigger.addEventListener('click', (e) => {
-    e.stopPropagation();
-    popupTextColor.classList.add('hidden');
-    popupBgColor.classList.toggle('hidden');
-});
+    btnBgColorTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popupTextColor.classList.add('hidden');
+        popupBgColor.classList.toggle('hidden');
+    });
 
-// Prevent popup close when clicking inside
-popupTextColor.addEventListener('click', (e) => e.stopPropagation());
-popupBgColor.addEventListener('click', (e) => e.stopPropagation());
+    // Prevent popup close when clicking inside
+    popupTextColor.addEventListener('click', (e) => e.stopPropagation());
+    popupBgColor.addEventListener('click', (e) => e.stopPropagation());
 
-// Presets Logic
-const presetSwatches = document.querySelectorAll('.color-swatch');
-presetSwatches.forEach(swatch => {
-    swatch.addEventListener('click', () => {
-        const color = swatch.dataset.color;
-        // Determine which popup is active to know if Text or Bg
-        if (!popupTextColor.classList.contains('hidden')) {
-            // Text Color
-            updateTextColor(color);
-            floatTextColor.value = color; // Sync picker if possible (might fail for transparent but text usually isn't)
-        } else if (!popupBgColor.classList.contains('hidden')) {
-            // Bg Color
-            if (color === 'transparent') {
-                updateBgColor('transparent', 0);
-                floatBgColor.value = '#ffffff';
-                bgOpacity.value = 0;
-            } else {
-                updateBgColor(color, 1);
-                floatBgColor.value = color;
-                bgOpacity.value = 1;
+    // Presets Logic
+    const presetSwatches = document.querySelectorAll('.color-swatch');
+    presetSwatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            const color = swatch.dataset.color;
+            // Determine which popup is active to know if Text or Bg
+            if (!popupTextColor.classList.contains('hidden')) {
+                // Text Color
+                updateTextColor(color);
+                floatTextColor.value = color; // Sync picker if possible (might fail for transparent but text usually isn't)
+            } else if (!popupBgColor.classList.contains('hidden')) {
+                // Bg Color
+                if (color === 'transparent') {
+                    updateBgColor('transparent', 0);
+                    floatBgColor.value = '#ffffff';
+                    bgOpacity.value = 0;
+                } else {
+                    updateBgColor(color, 1);
+                    floatBgColor.value = color;
+                    bgOpacity.value = 1;
+                }
             }
+        });
+    });
+
+    // Style Toggles
+    btnBold.addEventListener('click', () => toggleStyle('fontWeight', 'bold', 'normal', btnBold));
+    btnItalic.addEventListener('click', () => toggleStyle('fontStyle', 'italic', 'normal', btnItalic));
+    btnUnderline.addEventListener('click', () => {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            const newVal = !activeObj.underline;
+            activeObj.set('underline', newVal);
+            fabricCanvas.renderAll();
+            btnUnderline.classList.toggle('active', newVal);
         }
     });
-});
 
-// Style Toggles
-btnBold.addEventListener('click', () => toggleStyle('fontWeight', 'bold', 'normal', btnBold));
-btnItalic.addEventListener('click', () => toggleStyle('fontStyle', 'italic', 'normal', btnItalic));
-btnUnderline.addEventListener('click', () => {
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-        const newVal = !activeObj.underline;
-        activeObj.set('underline', newVal);
-        fabricCanvas.renderAll();
-        btnUnderline.classList.toggle('active', newVal);
-    }
-});
-
-function toggleStyle(prop, activeVal, inactiveVal, btn) {
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-        const current = activeObj[prop];
-        const newVal = current === activeVal ? inactiveVal : activeVal;
-        activeObj.set(prop, newVal);
-        fabricCanvas.renderAll();
-        btn.classList.toggle('active', newVal === activeVal);
-    }
-}
-
-// Alignment
-btnAlignLeft.addEventListener('click', () => setAlign('left'));
-btnAlignCenter.addEventListener('click', () => setAlign('center'));
-btnAlignRight.addEventListener('click', () => setAlign('right'));
-
-function setAlign(align) {
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-        activeObj.set('textAlign', align);
-        fabricCanvas.renderAll();
-        // Update UI
-        btnAlignLeft.classList.toggle('active', align === 'left');
-        btnAlignCenter.classList.toggle('active', align === 'center');
-        btnAlignRight.classList.toggle('active', align === 'right');
-    }
-}
-
-// Font Size
-floatFontSize.addEventListener('input', (e) => {
-    const val = parseInt(e.target.value, 10);
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-        activeObj.set({
-            fontSize: val,
-            scaleX: 1,
-            scaleY: 1
-        });
-        fabricCanvas.renderAll();
-    }
-});
-
-// Text Color Input
-floatTextColor.addEventListener('input', (e) => {
-    updateTextColor(e.target.value);
-});
-
-function updateTextColor(val) {
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj) {
-        if (activeObj.type === 'rect') {
-            activeObj.set('stroke', val);
-        } else {
-            activeObj.set('fill', val);
+    function toggleStyle(prop, activeVal, inactiveVal, btn) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            const current = activeObj[prop];
+            const newVal = current === activeVal ? inactiveVal : activeVal;
+            activeObj.set(prop, newVal);
+            fabricCanvas.renderAll();
+            btn.classList.toggle('active', newVal === activeVal);
         }
-        indicatorTextColor.style.backgroundColor = val;
-        fabricCanvas.renderAll();
-    }
-}
-
-// Bg Color Input
-floatBgColor.addEventListener('input', (e) => {
-    updateBgColor(e.target.value, parseFloat(bgOpacity.value));
-});
-
-// Opacity Input
-bgOpacity.addEventListener('input', (e) => {
-    updateBgColor(floatBgColor.value, parseFloat(e.target.value));
-});
-
-function updateBgColor(hexColor, alpha) {
-    const activeObj = fabricCanvas.getActiveObject();
-    if (!activeObj) return;
-
-    let finalColor;
-    if (alpha === 0 || hexColor === 'transparent') {
-        finalColor = 'transparent';
-        indicatorBgColor.style.backgroundColor = 'transparent';
-        indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')';
-    } else {
-        finalColor = hexToRgba(hexColor, alpha);
-        indicatorBgColor.style.backgroundColor = finalColor;
-        indicatorBgColor.style.backgroundImage = 'none';
     }
 
-    if (activeObj.type === 'rect') {
-        activeObj.set('fill', finalColor);
-    } else {
-        activeObj.set('backgroundColor', finalColor);
-    }
-    fabricCanvas.renderAll();
-}
+    // Alignment
+    btnAlignLeft.addEventListener('click', () => setAlign('left'));
+    btnAlignCenter.addEventListener('click', () => setAlign('center'));
+    btnAlignRight.addEventListener('click', () => setAlign('right'));
 
-floatBtnDelete.addEventListener('click', () => {
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj) {
-        fabricCanvas.remove(activeObj);
-        fabricCanvas.discardActiveObject();
-        hideFloatingToolbar();
-    }
-});
-
-// Sidebar Color Picker Sync (Optional, but good for consistency)
-editorColor.addEventListener('input', (e) => {
-    const color = e.target.value;
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj) {
-        if (activeObj.type === 'rect') {
-            activeObj.set('stroke', color);
-        } else {
-            activeObj.set('fill', color);
+    function setAlign(align) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            activeObj.set('textAlign', align);
+            fabricCanvas.renderAll();
+            // Update UI
+            btnAlignLeft.classList.toggle('active', align === 'left');
+            btnAlignCenter.classList.toggle('active', align === 'center');
+            btnAlignRight.classList.toggle('active', align === 'right');
         }
-        fabricCanvas.requestRenderAll();
-    }
-});
-
-btnDeleteObj.addEventListener('click', () => {
-    const activeObj = fabricCanvas.getActiveObject();
-    if (activeObj) {
-        fabricCanvas.remove(activeObj);
-        fabricCanvas.discardActiveObject();
-        updateEditorControlsOriginal();
-        hideFloatingToolbar();
-    }
-});
-
-async function loadEditorPage(index) {
-    if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
-        const json = fabricCanvas.toJSON(['id', 'selectable']);
-        delete json.backgroundImage;
-        editorPages[currentEditorPageIndex].fabricJSON = json;
     }
 
-    currentEditorPageIndex = index;
-    const page = await currentEditorPdfJsDoc.getPage(index + 1);
-    const viewport = page.getViewport({ scale: 1.5 });
+    // Font Size
+    floatFontSize.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            activeObj.set({
+                fontSize: val,
+                scaleX: 1,
+                scaleY: 1
+            });
+            fabricCanvas.renderAll();
+        }
+    });
 
-    fabricCanvas.setWidth(viewport.width);
-    fabricCanvas.setHeight(viewport.height);
-    fabricCanvas.clear();
+    // Text Color Input
+    floatTextColor.addEventListener('input', (e) => {
+        updateTextColor(e.target.value);
+    });
 
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-    const imgEl = new Image();
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-    imgEl.src = URL.createObjectURL(blob);
-
-    imgEl.onload = () => {
-        const fImg = new fabric.Image(imgEl);
-        fImg.set({
-            originX: 'left', originY: 'top',
-            selectable: false, evented: false,
-            width: viewport.width, height: viewport.height
-        });
-        fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
-        URL.revokeObjectURL(imgEl.src);
-
-        if (!editorPages[index]) {
-            editorPages[index] = { pageIndex: index, fabricJSON: null };
-        } else if (editorPages[index].fabricJSON) {
-            if (editorPages[index].fabricJSON.objects.length > 0) {
-                fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
-                    fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
-                });
+    function updateTextColor(val) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            if (activeObj.type === 'rect') {
+                activeObj.set('stroke', val);
+            } else {
+                activeObj.set('fill', val);
             }
+            indicatorTextColor.style.backgroundColor = val;
+            fabricCanvas.renderAll();
         }
-    };
-
-    pageIndicator.textContent = `Page ${index + 1} / ${currentEditorPdfJsDoc.numPages}`;
-    btnPrevPage.disabled = index === 0;
-    btnNextPage.disabled = index === currentEditorPdfJsDoc.numPages - 1;
-}
-
-btnPrevPage.addEventListener('click', () => {
-    if (currentEditorPageIndex > 0) {
-        loadEditorPage(currentEditorPageIndex - 1);
-    }
-});
-
-btnNextPage.addEventListener('click', () => {
-    if (currentEditorPageIndex < currentEditorPdfJsDoc.numPages - 1) {
-        loadEditorPage(currentEditorPageIndex + 1);
-    }
-});
-
-// --- Save Logic ---
-async function saveEditedPDF() {
-    if (fabricCanvas) {
-        const json = fabricCanvas.toJSON(['id', 'selectable']);
-        delete json.backgroundImage;
-        editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
     }
 
-    try {
-        const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
-        pdfDoc.registerFontkit(fontkit);
+    // Bg Color Input
+    floatBgColor.addEventListener('input', (e) => {
+        updateBgColor(e.target.value, parseFloat(bgOpacity.value));
+    });
 
-        // Fonts
-        const fontUrlReg = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.woff2';
-        const fontUrlBold = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75v.woff2';
+    // Opacity Input
+    bgOpacity.addEventListener('input', (e) => {
+        updateBgColor(floatBgColor.value, parseFloat(e.target.value));
+    });
 
-        let fontRegular = null;
-        let fontBold = null;
+    function updateBgColor(hexColor, alpha) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (!activeObj) return;
+
+        let finalColor;
+        if (alpha === 0 || hexColor === 'transparent') {
+            finalColor = 'transparent';
+            indicatorBgColor.style.backgroundColor = 'transparent';
+            indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')';
+        } else {
+            finalColor = hexToRgba(hexColor, alpha);
+            indicatorBgColor.style.backgroundColor = finalColor;
+            indicatorBgColor.style.backgroundImage = 'none';
+        }
+
+        if (activeObj.type === 'rect') {
+            activeObj.set('fill', finalColor);
+        } else {
+            activeObj.set('backgroundColor', finalColor);
+        }
+        fabricCanvas.renderAll();
+    }
+
+    floatBtnDelete.addEventListener('click', () => {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            fabricCanvas.remove(activeObj);
+            fabricCanvas.discardActiveObject();
+            hideFloatingToolbar();
+        }
+    });
+
+    // Sidebar Color Picker Sync (Optional, but good for consistency)
+    editorColor.addEventListener('input', (e) => {
+        const color = e.target.value;
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            if (activeObj.type === 'rect') {
+                activeObj.set('stroke', color);
+            } else {
+                activeObj.set('fill', color);
+            }
+            fabricCanvas.requestRenderAll();
+        }
+    });
+
+    btnDeleteObj.addEventListener('click', () => {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            fabricCanvas.remove(activeObj);
+            fabricCanvas.discardActiveObject();
+            updateEditorControlsOriginal();
+            hideFloatingToolbar();
+        }
+    });
+
+    async function loadEditorPage(index) {
+        if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
+            const json = fabricCanvas.toJSON(['id', 'selectable']);
+            delete json.backgroundImage;
+            editorPages[currentEditorPageIndex].fabricJSON = json;
+        }
+
+        currentEditorPageIndex = index;
+        const page = await currentEditorPdfJsDoc.getPage(index + 1);
+        const viewport = page.getViewport({ scale: 1.5 });
+
+        fabricCanvas.setWidth(viewport.width);
+        fabricCanvas.setHeight(viewport.height);
+        fabricCanvas.clear();
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+        const imgEl = new Image();
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
+        imgEl.src = URL.createObjectURL(blob);
+
+        imgEl.onload = () => {
+            const fImg = new fabric.Image(imgEl);
+            fImg.set({
+                originX: 'left', originY: 'top',
+                selectable: false, evented: false,
+                width: viewport.width, height: viewport.height
+            });
+            fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
+            URL.revokeObjectURL(imgEl.src);
+
+            if (!editorPages[index]) {
+                editorPages[index] = { pageIndex: index, fabricJSON: null };
+            } else if (editorPages[index].fabricJSON) {
+                if (editorPages[index].fabricJSON.objects.length > 0) {
+                    fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
+                        fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
+                    });
+                }
+            }
+        };
+
+        pageIndicator.textContent = `Page ${index + 1} / ${currentEditorPdfJsDoc.numPages}`;
+        btnPrevPage.disabled = index === 0;
+        btnNextPage.disabled = index === currentEditorPdfJsDoc.numPages - 1;
+    }
+
+    btnPrevPage.addEventListener('click', () => {
+        if (currentEditorPageIndex > 0) {
+            loadEditorPage(currentEditorPageIndex - 1);
+        }
+    });
+
+    btnNextPage.addEventListener('click', () => {
+        if (currentEditorPageIndex < currentEditorPdfJsDoc.numPages - 1) {
+            loadEditorPage(currentEditorPageIndex + 1);
+        }
+    });
+
+    // --- Save Logic ---
+    async function saveEditedPDF() {
+        if (fabricCanvas) {
+            const json = fabricCanvas.toJSON(['id', 'selectable']);
+            delete json.backgroundImage;
+            editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
+        }
 
         try {
-            const [bytesReg, bytesBold] = await Promise.all([
-                fetch(fontUrlReg).then(res => res.arrayBuffer()),
-                fetch(fontUrlBold).then(res => res.arrayBuffer()).catch(e => {
-                    console.warn("Failed to load bold font", e);
-                    return null;
-                })
-            ]);
+            const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
+            pdfDoc.registerFontkit(fontkit);
 
-            fontRegular = await pdfDoc.embedFont(bytesReg);
-            if (bytesBold) {
-                fontBold = await pdfDoc.embedFont(bytesBold);
+            // Fonts
+            const fontUrlReg = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.woff2';
+            const fontUrlBold = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75v.woff2';
+
+            let fontRegular = null;
+            let fontBold = null;
+
+            try {
+                const [bytesReg, bytesBold] = await Promise.all([
+                    fetch(fontUrlReg).then(res => res.arrayBuffer()),
+                    fetch(fontUrlBold).then(res => res.arrayBuffer()).catch(e => {
+                        console.warn("Failed to load bold font", e);
+                        return null;
+                    })
+                ]);
+
+                fontRegular = await pdfDoc.embedFont(bytesReg);
+                if (bytesBold) {
+                    fontBold = await pdfDoc.embedFont(bytesBold);
+                }
+            } catch (e) {
+                console.warn("Could not load JP fonts.", e);
+                alert("日本語フォントの読み込みに失敗しました。");
             }
-        } catch (e) {
-            console.warn("Could not load JP fonts.", e);
-            alert("日本語フォントの読み込みに失敗しました。");
-        }
 
-        const pages = pdfDoc.getPages();
+            const pages = pdfDoc.getPages();
 
-        for (let i = 0; i < pages.length; i++) {
-            if (!editorPages[i] || !editorPages[i].fabricJSON) continue;
+            for (let i = 0; i < pages.length; i++) {
+                if (!editorPages[i] || !editorPages[i].fabricJSON) continue;
 
-            const page = pages[i];
-            const { width, height } = page.getSize();
-            const scaleFactor = 1 / 1.5;
-            const fabricData = editorPages[i].fabricJSON;
+                const page = pages[i];
+                const { width, height } = page.getSize();
+                const scaleFactor = 1 / 1.5;
+                const fabricData = editorPages[i].fabricJSON;
 
-            if (fabricData.objects) {
-                for (const obj of fabricData.objects) {
-                    const x = obj.left * scaleFactor;
-                    const objHeight = (obj.height * obj.scaleY) * scaleFactor;
-                    const objWidth = (obj.width * obj.scaleX) * scaleFactor;
-                    const y = height - (obj.top * scaleFactor) - objHeight;
+                if (fabricData.objects) {
+                    for (const obj of fabricData.objects) {
+                        const x = obj.left * scaleFactor;
+                        const objHeight = (obj.height * obj.scaleY) * scaleFactor;
+                        const objWidth = (obj.width * obj.scaleX) * scaleFactor;
+                        const y = height - (obj.top * scaleFactor) - objHeight;
 
-                    if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
-                        const fontSize = obj.fontSize * obj.scaleX * scaleFactor;
+                        if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                            const fontSize = obj.fontSize * obj.scaleX * scaleFactor;
 
-                        // Select Font
-                        const useBold = obj.fontWeight === 'bold' && fontBold;
-                        const activeFont = useBold ? fontBold : (fontRegular || undefined);
+                            // Select Font
+                            const useBold = obj.fontWeight === 'bold' && fontBold;
+                            const activeFont = useBold ? fontBold : (fontRegular || undefined);
 
-                        // Background Color (Handle Opacity)
-                        if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
-                            // Parse rgba/hex for pdf-lib
-                            let color;
-                            let opacity = 1;
+                            // Background Color (Handle Opacity)
+                            if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
+                                // Parse rgba/hex for pdf-lib
+                                let color;
+                                let opacity = 1;
 
-                            if (obj.backgroundColor.startsWith('rgba')) {
-                                const match = obj.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                                if (match) {
-                                    color = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
-                                    opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
+                                if (obj.backgroundColor.startsWith('rgba')) {
+                                    const match = obj.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                                    if (match) {
+                                        color = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
+                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
+                                    }
+                                } else {
+                                    color = hexToRgb(obj.backgroundColor); // Assuming helper exists or using basic hex processing
                                 }
-                            } else {
-                                color = hexToRgb(obj.backgroundColor); // Assuming helper exists or using basic hex processing
+
+                                if (color) {
+                                    page.drawRectangle({
+                                        x: x,
+                                        y: y,
+                                        width: objWidth,
+                                        height: objHeight,
+                                        color: color,
+                                        opacity: opacity
+                                    });
+                                }
                             }
 
-                            if (color) {
-                                page.drawRectangle({
-                                    x: x,
-                                    y: y,
-                                    width: objWidth,
-                                    height: objHeight,
-                                    color: color,
-                                    opacity: opacity
+                            // Text
+                            const textOptions = {
+                                x: x,
+                                y: height - (obj.top * scaleFactor) - (fontSize * 0.88),
+                                size: fontSize,
+                                font: activeFont,
+                                color: hexToRgb(obj.fill),
+                                lineHeight: obj.lineHeight,
+                            };
+
+                            if (obj.type === 'textbox') {
+                                textOptions.maxWidth = objWidth;
+                            }
+
+                            page.drawText(obj.text, textOptions);
+
+                            // Underline
+                            if (obj.underline) {
+                                const lineY = textOptions.y - 2;
+                                page.drawLine({
+                                    start: { x: x, y: lineY },
+                                    end: { x: x + objWidth, y: lineY },
+                                    thickness: Math.max(1, fontSize / 15),
+                                    color: hexToRgb(obj.fill)
                                 });
                             }
-                        }
 
-                        // Text
-                        const textOptions = {
-                            x: x,
-                            y: height - (obj.top * scaleFactor) - (fontSize * 0.88),
-                            size: fontSize,
-                            font: activeFont,
-                            color: hexToRgb(obj.fill),
-                            lineHeight: obj.lineHeight,
-                        };
+                        } else if (obj.type === 'rect') {
+                            // Handle Rect Opacity if needed
+                            let fillColor = undefined;
+                            let opacity = 1;
 
-                        if (obj.type === 'textbox') {
-                            textOptions.maxWidth = objWidth;
-                        }
+                            if (obj.fill && obj.fill !== 'transparent') {
+                                if (obj.fill.startsWith('rgba')) {
+                                    const match = obj.fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                                    if (match) {
+                                        fillColor = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
+                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
+                                    }
+                                } else {
+                                    fillColor = hexToRgb(obj.fill);
+                                }
+                            }
 
-                        page.drawText(obj.text, textOptions);
-
-                        // Underline
-                        if (obj.underline) {
-                            const lineY = textOptions.y - 2;
-                            page.drawLine({
-                                start: { x: x, y: lineY },
-                                end: { x: x + objWidth, y: lineY },
-                                thickness: Math.max(1, fontSize / 15),
-                                color: hexToRgb(obj.fill)
+                            page.drawRectangle({
+                                x: x, y: y,
+                                width: objWidth,
+                                height: objHeight,
+                                borderColor: hexToRgb(obj.stroke),
+                                borderWidth: obj.strokeWidth * scaleFactor,
+                                color: fillColor,
+                                opacity: opacity
                             });
                         }
-
-                    } else if (obj.type === 'rect') {
-                        // Handle Rect Opacity if needed
-                        let fillColor = undefined;
-                        let opacity = 1;
-
-                        if (obj.fill && obj.fill !== 'transparent') {
-                            if (obj.fill.startsWith('rgba')) {
-                                const match = obj.fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                                if (match) {
-                                    fillColor = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
-                                    opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
-                                }
-                            } else {
-                                fillColor = hexToRgb(obj.fill);
-                            }
-                        }
-
-                        page.drawRectangle({
-                            x: x, y: y,
-                            width: objWidth,
-                            height: objHeight,
-                            borderColor: hexToRgb(obj.stroke),
-                            borderWidth: obj.strokeWidth * scaleFactor,
-                            color: fillColor,
-                            opacity: opacity
-                        });
                     }
                 }
             }
+            const pdfBytes = await pdfDoc.save();
+            downloadFile(pdfBytes, "edited_document.pdf");
+        } catch (err) {
+            console.error(err);
+            alert("保存に失敗しました: " + err.message);
         }
-        const pdfBytes = await pdfDoc.save();
-        downloadFile(pdfBytes, "edited_document.pdf");
-    } catch (err) {
-        console.error(err);
-        alert("保存に失敗しました: " + err.message);
     }
-}
 
-function hexToRgb(hex) {
-    if (!hex) return undefined;
-    var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-    hex = hex.replace(shorthandRegex, function (m, r, g, b) {
-        return r + r + g + g + b + b;
-    });
+    function hexToRgb(hex) {
+        if (!hex) return undefined;
+        var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+            return r + r + g + g + b + b;
+        });
 
-    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    return result ? PDFLib.rgb(
-        parseInt(result[1], 16) / 255,
-        parseInt(result[2], 16) / 255,
-        parseInt(result[3], 16) / 255
-    ) : undefined;
-}
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? PDFLib.rgb(
+            parseInt(result[1], 16) / 255,
+            parseInt(result[2], 16) / 255,
+            parseInt(result[3], 16) / 255
+        ) : undefined;
+    }
 });
