@@ -184,9 +184,10 @@
                             <!-- Text Color -->
                             <div class="tool-wrapper" style="position: relative;">
                                 <button id="btn-text-color-trigger" class="btn-tool" title="文字色">
-                                    <i class="material-icons" style="color: #555;">format_color_text</i>
+                                    <span
+                                        style="font-weight: 900; font-family: 'Times New Roman', serif; font-size: 20px; color: #555; line-height: 1;">A</span>
                                     <div id="indicator-text-color"
-                                        style="width: 12px; height: 3px; background: #000; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);">
+                                        style="width: 14px; height: 5px; background: #000; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
                                     </div>
                                 </button>
                                 <!-- Popup -->
@@ -221,14 +222,14 @@
                                 <button id="btn-bg-color-trigger" class="btn-tool" title="背景色">
                                     <i class="material-icons" style="color: #555;">format_color_fill</i>
                                     <div id="indicator-bg-color"
-                                        style="width: 12px; height: 3px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);">
+                                        style="width: 14px; height: 5px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
                                     </div>
                                 </button>
                                 <!-- Popup -->
                                 <div id="popup-bg-color" class="popup-panel hidden">
                                     <div class="color-presets">
-                                        <button class="color-swatch" data-color="transparent" title="なし"
-                                            style="background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg=='); border: 1px solid #ddd;"></button>
+                                        <button class="color-swatch swatch-transparent" data-color="transparent"
+                                            title="なし"></button>
                                         <button class="color-swatch" data-color="#FFFFFF"
                                             style="background: #FFFFFF; border: 1px solid #ddd;"></button>
                                         <button class="color-swatch" data-color="#FFEB3B"
