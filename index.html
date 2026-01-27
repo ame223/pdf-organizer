@@ -126,8 +126,46 @@
                             class="material-icons">chevron_right</i></button>
                 </div>
                 <!-- Canvas Wrapper with shadow -->
-                <div id="canvas-wrapper" style="box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 1px solid #ccc;">
-                    <canvas id="fabric-canvas"></canvas>
+                <div id="canvas-container" style="position: relative;">
+                    <div id="canvas-wrapper" style="box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 1px solid #ccc;">
+                        <canvas id="fabric-canvas"></canvas>
+                    </div>
+
+                    <!-- Floating Toolbar for Contextual Editing -->
+                    <div id="floating-toolbar" class="hidden" style="
+                       position: absolute; 
+                       background: white; 
+                       border-radius: 4px; 
+                       box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
+                       padding: 8px; 
+                       display: flex; 
+                       gap: 8px; 
+                       align-items: center;
+                       z-index: 100;
+                       border: 1px solid #ddd;
+                   ">
+                        <!-- Font Size Control -->
+                        <div class="toolbar-item" style="display: flex; align-items: center; gap: 4px;">
+                            <i class="material-icons" style="font-size: 16px; color: #666;">format_size</i>
+                            <input type="number" id="float-font-size" value="24" min="8" max="200"
+                                style="width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+
+                        <!-- Color Picker -->
+                        <div class="toolbar-item" style="display: flex; align-items: center; gap: 4px;">
+                            <input type="color" id="float-color" value="#000000"
+                                style="border: none; width: 24px; height: 24px; cursor: pointer; padding: 0;">
+                        </div>
+
+                        <!-- Divider -->
+                        <div style="width: 1px; height: 20px; background: #eee;"></div>
+
+                        <!-- Delete Button -->
+                        <button id="float-btn-delete" class="btn is-text"
+                            style="padding: 4px; color: #f44336; min-width: auto;">
+                            <i class="material-icons">delete</i>
+                        </button>
+                    </div>
                 </div>
             </section>
 
