@@ -728,6 +728,66 @@ document.addEventListener('DOMContentLoaded', () => {
     const bgOpacity = document.getElementById('bg-opacity');
     const indicatorBgColor = document.getElementById('indicator-bg-color');
 
+    // --- Undo/Redo Logic ---
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+
+    let historyStack = [];
+    let historyIndex = -1;
+    let isHistoryLocked = false;
+
+    function saveHistory() {
+        if (isHistoryLocked) return;
+
+        // Redo用に未来の履歴があれば削除
+        if (historyIndex < historyStack.length - 1) {
+            historyStack = historyStack.slice(0, historyIndex + 1);
+        }
+
+        const json = fabricCanvas.toJSON(['id', 'selectable']);
+        delete json.backgroundImage; // 背景は除外して軽量化
+
+        historyStack.push(json);
+        historyIndex++;
+        updateHistoryButtons();
+    }
+
+    function undo() {
+        if (historyIndex > 0) {
+            historyIndex--;
+            restoreHistory(historyStack[historyIndex]);
+        }
+    }
+
+    function redo() {
+        if (historyIndex < historyStack.length - 1) {
+            historyIndex++;
+            restoreHistory(historyStack[historyIndex]);
+        }
+    }
+
+    function restoreHistory(json) {
+        isHistoryLocked = true; // 復元中のイベント発火による保存を防ぐ
+        const currentBg = fabricCanvas.backgroundImage; // 背景画像を退避
+
+        fabricCanvas.loadFromJSON(json, () => {
+            // 背景画像を再適用
+            if (currentBg) {
+                fabricCanvas.setBackgroundImage(currentBg, fabricCanvas.renderAll.bind(fabricCanvas));
+            }
+            isHistoryLocked = false;
+            updateHistoryButtons();
+        });
+    }
+
+    function updateHistoryButtons() {
+        btnUndo.disabled = historyIndex <= 0;
+        btnRedo.disabled = historyIndex >= historyStack.length - 1;
+    }
+
+    btnUndo.addEventListener('click', undo);
+    btnRedo.addEventListener('click', redo);
+
     const canvasContainer = document.getElementById('canvas-container');
 
     function initializeEditor() {
@@ -741,6 +801,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Object Modification Events
             fabricCanvas.on('object:modified', onObjectModified);
+            fabricCanvas.on('object:modified', saveHistory); // Added for Undo/Redo
+            fabricCanvas.on('object:added', saveHistory);    // Added for Undo/Redo
+            fabricCanvas.on('object:removed', saveHistory);  // Added for Undo/Redo
+
             fabricCanvas.on('object:moving', updateToolbarPosition);
             fabricCanvas.on('object:scaling', updateToolbarPosition);
             fabricCanvas.on('object:resizing', updateToolbarPosition);
@@ -1366,8 +1430,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (editorPages[index].fabricJSON.objects.length > 0) {
                     fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
                         fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
+                        // 履歴リセット＆初期状態保存
+                        historyStack = []; historyIndex = -1; saveHistory();
                     });
+                } else {
+                    // 空の場合も初期保存
+                    historyStack = []; historyIndex = -1; saveHistory();
                 }
+            } else {
+                // 初回ロード等
+                historyStack = []; historyIndex = -1; saveHistory();
             }
         };
 
