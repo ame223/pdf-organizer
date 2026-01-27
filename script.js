@@ -1,5 +1,3 @@
-
-
 document.addEventListener('DOMContentLoaded', () => {
     // --- Elements ---
     const dropZone = document.getElementById('drop-zone');
@@ -15,10 +13,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnBack = document.getElementById('btn-back');
     const actionButtonsContainer = document.getElementById('action-buttons');
 
+    // --- Editor Elements ---
+    const editorArea = document.getElementById('editor-area');
+    const editorControls = document.getElementById('editor-controls');
+    const btnAddText = document.getElementById('btn-add-text');
+    const btnAddRect = document.getElementById('btn-add-rect');
+    const editorColor = document.getElementById('editor-color');
+    const btnDeleteObj = document.getElementById('btn-delete-obj');
+    const btnPrevPage = document.getElementById('btn-prev-page');
+    const btnNextPage = document.getElementById('btn-next-page');
+    const pageIndicator = document.getElementById('page-indicator');
+
     // --- State ---
     let currentMode = null; // 'merge', 'split', 'reorder'
     let loadedFiles = []; // Stores { name: string, data: ArrayBuffer, pdfDoc: PDFDocument, pdfJsDoc: PDFDocumentProxy }
     let allPages = []; // Stores { fileId: number, pageIndex: number, thumbnail: string (dataURL), fileName: string, selected: boolean }
+
+    // --- Editor State ---
+    let fabricCanvas = null;
+    let editorPages = []; // Stores Fabric JSON state per page: { pageIndex: number, fabricJSON: object }
+    let currentEditorPageIndex = 0;
+    let currentEditorPdfJsDoc = null;
+    let currentEditorFile = null; // The file object being edited
 
     // --- Mode Selection Logic ---
     document.querySelectorAll('.mode-card').forEach(card => {
@@ -146,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Save Handler Dispatcher ---
     async function saveHandler(isIndividual = false) {
-        if (allPages.length === 0) return;
+        if (currentMode !== 'edit' && allPages.length === 0) return; // Edit mode checks inside saveEditedPDF
 
         if (currentMode === 'merge') {
             await savePDF(allPages, "merged-document.pdf");
@@ -167,104 +183,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 await savePDFToImages(allPages, "images.zip");
             }
-        } else if (currentMode === 'pdf2img') {
-            if (isIndividual) {
-                await savePDFToImagesIndividually(allPages);
-            } else {
-                await savePDFToImages(allPages, "images.zip");
-            }
         } else if (currentMode === 'edit') {
             await saveEditedPDF();
         }
     }
 
-    // ... (rest of code) ...
-
-    async function savePDFToImages(pagesToSave, defaultName) {
-        // ... (existing zip logic) ...
-        try {
-            const zip = new JSZip();
-            // Flatten: No subfolder to avoid potential path issues/warnings
-
-            for (let i = 0; i < pagesToSave.length; i++) {
-                const pageInfo = pagesToSave[i];
-                const sourceFile = loadedFiles[pageInfo.fileId];
-
-                // We need to render high-res canvas
-                const pdfJsDoc = sourceFile.pdfJsDoc;
-                const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
-
-                const viewport = page.getViewport({ scale: 2.0, rotation: pageInfo.rotation });
-
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-                // Convert to blob
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-
-                // Use simple generic filename to avoid Windows Security heuristics triggering on complex names
-                const filename = `image_${String(i + 1).padStart(3, '0')}.jpg`;
-
-                // Add to zip with explicit date (fixes some Windows unzip warnings)
-                zip.file(filename, blob, { date: new Date() });
-            }
-
-            const content = await zip.generateAsync({ type: "blob" });
-
-            // Download ZIP
-            const url = URL.createObjectURL(content);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = defaultName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-        } catch (err) {
-            console.error("Error saving images:", err);
-            alert("画像の保存に失敗しました。");
-        }
-    }
-
-    async function savePDFToImagesIndividually(pagesToSave) {
-        try {
-            let count = 0;
-            for (let i = 0; i < pagesToSave.length; i++) {
-                const pageInfo = pagesToSave[i];
-                const sourceFile = loadedFiles[pageInfo.fileId];
-
-                const pdfJsDoc = sourceFile.pdfJsDoc;
-                const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
-                const viewport = page.getViewport({ scale: 2.0, rotation: pageInfo.rotation });
-
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
-
-                await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-
-                const safeName = pageInfo.fileName.replace(/\.pdf$/i, "").replace(/[\\/:*?"<>|]/g, "_");
-                const filename = `${safeName}_p${pageInfo.pageIndex + 1}.jpg`;
-
-                // Download directly with a small delay to avoid browser blocking multiple downloads
-                setTimeout(() => {
-                    downloadFile(blob, filename);
-                }, count * 300);
-                count++;
-            }
-        } catch (err) {
-            console.error("Error saving images:", err);
-            alert("画像の保存に失敗しました。");
-        }
-    }
     const passwordModal = document.getElementById('password-modal');
     document.getElementById('btn-cancel-pass').addEventListener('click', () => {
         passwordModal.classList.add('hidden');
@@ -484,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             card.appendChild(zoomBtn);
 
-            // Rotate Button (Only in Reorder or Security mode? Or always?) - Let's show when helpful.
+            // Rotate Button
             if (currentMode === 'reorder' || currentMode === 'img2pdf' || currentMode === 'merge' || currentMode === 'split') {
                 const rotateBtn = document.createElement('button');
                 rotateBtn.className = 'btn-rotate';
@@ -500,8 +423,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Selection Event
             card.addEventListener('click', (e) => {
-                // In Split mode, selection is key. In others, maybe less so?
-                // Toggling selection always allowed. Button logic handles what to do with selected.
                 page.selected = !page.selected;
                 renderGrid();
             });
@@ -550,7 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 zoomCanvas.height = img.height;
                 context.drawImage(img, 0, 0);
             };
-            // Create object URL from array buffer
             const blob = new Blob([sourceFile.data], { type: sourceFile.mime });
             img.src = URL.createObjectURL(blob);
 
@@ -558,9 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Render PDF Page
             const pdfJsDoc = sourceFile.pdfJsDoc;
             const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
-
-            // High resolution scale
-            const viewport = page.getViewport({ scale: 1.5, rotation: pageInfo.rotation }); // Apply rotation
+            const viewport = page.getViewport({ scale: 1.5, rotation: pageInfo.rotation });
 
             zoomCanvas.height = viewport.height;
             zoomCanvas.width = viewport.width;
@@ -581,15 +499,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-
         if (this === draggedItem) return;
 
         const rect = this.getBoundingClientRect();
         const midX = rect.left + rect.width / 2;
 
-        // Remove existing classes
         this.classList.remove('drop-left', 'drop-right');
-
         if (e.clientX < midX) {
             this.classList.add('drop-left');
         } else {
@@ -597,7 +512,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Add dragleave to clean up styles when leaving a card
     function _handleDragLeave(e) {
         this.classList.remove('drop-left', 'drop-right');
     }
@@ -609,26 +523,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (draggedItem !== this) {
             const srcIdx = parseInt(draggedItem.dataset.index);
             let dstIdx = parseInt(this.dataset.index);
-
-            // Calculate exact dropped position
             const rect = this.getBoundingClientRect();
             const midX = rect.left + rect.width / 2;
 
-            // If dropped on the right half, we want to insert AFTER the target
             if (e.clientX >= midX) {
                 dstIdx++;
             }
-
-            // Adjustment if moving from left to right
-            // If we remove the item from srcIdx, indices > srcIdx decrease by 1.
-            // So if dstIdx > srcIdx, we need to decrement dstIdx to account for the removal.
             if (dstIdx > srcIdx) {
                 dstIdx--;
             }
 
             const item = allPages.splice(srcIdx, 1)[0];
             allPages.splice(dstIdx, 0, item);
-
             renderGrid();
         }
         return false;
@@ -636,7 +542,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleDragEnd(e) {
         this.classList.remove('dragging');
-        // Clean up any stray indicators just in case
         document.querySelectorAll('.page-card').forEach(card => {
             card.classList.remove('drop-left', 'drop-right');
         });
@@ -649,56 +554,39 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Save Functions ---
     async function savePDF(pagesToSave, defaultName, password = null) {
         try {
             const mergedPdf = await PDFLib.PDFDocument.create();
 
             for (const pageInfo of pagesToSave) {
                 const sourceFile = loadedFiles[pageInfo.fileId];
-
-                // Copy the page
                 const sourcePdfDoc = sourceFile.pdfDoc;
                 const [copiedPage] = await mergedPdf.copyPages(sourcePdfDoc, [pageInfo.pageIndex]);
 
-                // Apply Rotation
-                // Note: getRotation().angle ensures we get a number
                 const currentRotation = copiedPage.getRotation().angle;
                 copiedPage.setRotation(PDFLib.degrees(currentRotation + pageInfo.rotation));
-
                 mergedPdf.addPage(copiedPage);
             }
 
-            // 1. Create standard PDF bytes first
             const pdfBytes = await mergedPdf.save({ useObjectStreams: false });
-
-            // 2. Encrypt if password provided
             let finalBytes = pdfBytes;
 
             if (password) {
-                // Check if WebCrypto is available (Browser security restriction check)
                 if (!window.crypto || !window.crypto.subtle) {
-                    alert("【セキュリティ警告】\nブラウザの制限により、この環境(非HTTPS/file://)では暗号化が機能しません。\nローカルサーバーなどを経由して実行してください。\n\nパスワード無しで保存します。");
-                    // Fallback to unencrypted
+                    alert("【セキュリティ警告】\nブラウザの制限により、この環境(非HTTPS/file://)では暗号化が機能しません。\nパスワード無しで保存します。");
                 } else {
                     try {
-                        // Use esm.sh for reliable bundled ESM handling
                         const { encryptPDF } = await import('https://esm.sh/@pdfsmaller/pdf-encrypt-lite@1.0.1');
-
-
-                        // Signature: encryptPDF(pdfBytes, userPassword, ownerPassword)
-                        // Use same password for both to simplify
                         finalBytes = await encryptPDF(pdfBytes, password, password);
                     } catch (encErr) {
                         console.error("Encryption failed:", encErr);
                         const proceed = confirm(`暗号化に失敗しました: ${encErr.message}\n\nパスワード無しで保存しますか？`);
                         if (!proceed) return;
-                        // finalBytes remains unencrypted
                     }
                 }
             }
-
             downloadFile(finalBytes, defaultName);
-
         } catch (err) {
             console.error("Error saving PDF:", err);
             alert("PDFの保存に失敗しました。詳細: " + err.message);
@@ -712,51 +600,21 @@ document.addEventListener('DOMContentLoaded', () => {
             for (const pageInfo of pagesToSave) {
                 const sourceFile = loadedFiles[pageInfo.fileId];
                 let image;
-
                 if (sourceFile.mime === 'image/jpeg') {
                     image = await newPdf.embedJpg(sourceFile.data);
                 } else if (sourceFile.mime === 'image/png') {
                     image = await newPdf.embedPng(sourceFile.data);
                 }
-
-                // Add page sized to image
-                // Apply rotation dimensions
                 const { width, height } = image.scale(1);
-                // If rotated 90/270, swap dimensions
-                const isVertical = pageInfo.rotation % 180 !== 0; // 90 or 270
-
-                const page = newPdf.addPage(isVertical ? [height, width] : [width, height]);
-
+                const page = newPdf.addPage([width, height]);
                 page.drawImage(image, {
-                    x: 0,
-                    y: 0,
-                    width: width,
-                    height: height,
+                    x: 0, y: 0, width: width, height: height,
                     rotate: PDFLib.degrees(pageInfo.rotation)
                 });
-
-                // If rotated 90 deg clockwise:
-                // Normal: width 100, height 200.
-                // 90deg : Page size 200x100.
-                // DrawImage needs to handle translation if purely rotating?
-                // pdf-lib's drawImage rotation rotates around origin (bottom-left).
-                // It's tricky. Let's restart with standard page logic or just use `setRotation` on page?
-                // Easier: Add page standard size, then setRotation.
-
-                // Correction:
-                // page.setRotation only changes view, doesn't rotate content relative to page.
-                // For images, we want the visible result.
-
-                // Simplified approach for V1 of this feature: 
-                // Just use page.setRotation matches what we do for PDFs.
-                // 1. Add page standard size, then setRotation.
-                page.setSize(width, height);
                 page.setRotation(PDFLib.degrees(pageInfo.rotation));
             }
-
             const pdfBytes = await newPdf.save();
             downloadFile(pdfBytes, defaultName);
-
         } catch (err) {
             console.error("Error creating PDF from images:", err);
             alert("PDF作成に失敗しました。");
@@ -766,38 +624,22 @@ document.addEventListener('DOMContentLoaded', () => {
     async function savePDFToImages(pagesToSave, defaultName) {
         try {
             const zip = new JSZip();
-            // Flatten: No subfolder to avoid potential path issues/warnings
-
             for (let i = 0; i < pagesToSave.length; i++) {
                 const pageInfo = pagesToSave[i];
                 const sourceFile = loadedFiles[pageInfo.fileId];
-
-                // We need to render high-res canvas
                 const pdfJsDoc = sourceFile.pdfJsDoc;
                 const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
-
-                const viewport = page.getViewport({ scale: 2.0, rotation: pageInfo.rotation }); // Apply rotation here too!
-
+                const viewport = page.getViewport({ scale: 2.0, rotation: pageInfo.rotation });
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
-
                 await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-                // Convert to blob
                 const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-
-                // Use simple generic filename to avoid Windows Security heuristics triggering on complex names
                 const filename = `image_${String(i + 1).padStart(3, '0')}.jpg`;
-
-                // Add to zip with explicit date (fixes some Windows unzip warnings)
                 zip.file(filename, blob, { date: new Date() });
             }
-
             const content = await zip.generateAsync({ type: "blob" });
-
-            // Download ZIP
             const url = URL.createObjectURL(content);
             const a = document.createElement('a');
             a.href = url;
@@ -806,7 +648,34 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("Error saving images:", err);
+            alert("画像の保存に失敗しました。");
+        }
+    }
 
+    async function savePDFToImagesIndividually(pagesToSave) {
+        try {
+            let count = 0;
+            for (let i = 0; i < pagesToSave.length; i++) {
+                const pageInfo = pagesToSave[i];
+                const sourceFile = loadedFiles[pageInfo.fileId];
+                const pdfJsDoc = sourceFile.pdfJsDoc;
+                const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
+                const viewport = page.getViewport({ scale: 2.0, rotation: pageInfo.rotation });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+                const safeName = pageInfo.fileName.replace(/\.pdf$/i, "").replace(/[\\/:*?"<>|]/g, "_");
+                const filename = `${safeName}_p${pageInfo.pageIndex + 1}.jpg`;
+                setTimeout(() => {
+                    downloadFile(blob, filename);
+                }, count * 300);
+                count++;
+            }
         } catch (err) {
             console.error("Error saving images:", err);
             alert("画像の保存に失敗しました。");
@@ -825,32 +694,10 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
     }
 
-    // ... [Previous code matches] ...
-
-    // --- Editor Elements ---
-    const editorArea = document.getElementById('editor-area');
-    const editorControls = document.getElementById('editor-controls');
-    const btnAddText = document.getElementById('btn-add-text');
-    const btnAddRect = document.getElementById('btn-add-rect');
-    const editorColor = document.getElementById('editor-color');
-    const btnDeleteObj = document.getElementById('btn-delete-obj');
-    const btnPrevPage = document.getElementById('btn-prev-page');
-    const btnNextPage = document.getElementById('btn-next-page');
-    const pageIndicator = document.getElementById('page-indicator');
-
-    // --- Editor State ---
-    let fabricCanvas = null;
-    let editorPages = []; // Stores Fabric JSON state per page: { pageIndex: number, fabricJSON: object }
-    let currentEditorPageIndex = 0;
-    let currentEditorPdfJsDoc = null;
-    let currentEditorFile = null; // The file object being edited
-
-    // --- Editor Logic ---
+    // --- Editor Logic (Integrated) ---
     function initializeEditor() {
         if (!fabricCanvas) {
             fabricCanvas = new fabric.Canvas('fabric-canvas');
-
-            // Canvas Events
             fabricCanvas.on('selection:created', updateEditorControls);
             fabricCanvas.on('selection:updated', updateEditorControls);
             fabricCanvas.on('selection:cleared', updateEditorControls);
@@ -860,7 +707,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateEditorControls() {
         const activeObj = fabricCanvas.getActiveObject();
         if (activeObj) {
-            // Update color picker to match active object
             editorColor.value = activeObj.fill || activeObj.stroke || '#000000';
             btnDeleteObj.disabled = false;
         } else {
@@ -870,13 +716,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnAddText.addEventListener('click', () => {
         const text = new fabric.IText('テキスト入力', {
-            left: 50,
-            top: 50,
-            fontFamily: 'Noto Sans JP', // Use a font that we can embed
+            left: 50, top: 50,
+            fontFamily: 'Noto Sans JP',
             fill: editorColor.value,
-            fontSize: 24,
-            originX: 'left',
-            originY: 'top'
+            fontSize: 24
         });
         fabricCanvas.add(text);
         fabricCanvas.setActiveObject(text);
@@ -884,13 +727,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     btnAddRect.addEventListener('click', () => {
         const rect = new fabric.Rect({
-            left: 100,
-            top: 100,
+            left: 100, top: 100,
             fill: 'transparent',
             stroke: editorColor.value,
             strokeWidth: 3,
-            width: 100,
-            height: 100
+            width: 100, height: 100
         });
         fabricCanvas.add(rect);
         fabricCanvas.setActiveObject(rect);
@@ -918,9 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Pagination Logic for Editor
     async function loadEditorPage(index) {
-        // Save current page state before switching
         if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
             const json = fabricCanvas.toJSON(['id', 'selectable']);
             delete json.backgroundImage;
@@ -929,56 +768,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentEditorPageIndex = index;
         const page = await currentEditorPdfJsDoc.getPage(index + 1);
-        const viewport = page.getViewport({ scale: 1.5 }); // Good resolution for editing
+        const viewport = page.getViewport({ scale: 1.5 });
 
-        // Resize Canvas
         fabricCanvas.setWidth(viewport.width);
         fabricCanvas.setHeight(viewport.height);
         fabricCanvas.clear();
 
-        // Render PDF Page to Image
         const canvas = document.createElement('canvas');
         const context = canvas.getContext('2d');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-
         await page.render({ canvasContext: context, viewport: viewport }).promise;
 
-        // Use simplified approach for creating Image objects
         const imgEl = new Image();
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
         imgEl.src = URL.createObjectURL(blob);
 
         imgEl.onload = () => {
             const fImg = new fabric.Image(imgEl);
-            // Lock background
             fImg.set({
-                originX: 'left',
-                originY: 'top',
-                selectable: false,
-                evented: false,
-                width: viewport.width,
-                height: viewport.height
+                originX: 'left', originY: 'top',
+                selectable: false, evented: false,
+                width: viewport.width, height: viewport.height
             });
-
             fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
-            URL.revokeObjectURL(imgEl.src); // Cleanup
+            URL.revokeObjectURL(imgEl.src);
 
-            // Restore Objects
             if (!editorPages[index]) {
                 editorPages[index] = { pageIndex: index, fabricJSON: null };
             } else if (editorPages[index].fabricJSON) {
-                // Determine if we have objects to load
                 if (editorPages[index].fabricJSON.objects.length > 0) {
                     fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
-                        // Re-set background image because loadFromJSON might clear it
                         fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
                     });
                 }
             }
         };
 
-        // Update UI
         pageIndicator.textContent = `Page ${index + 1} / ${currentEditorPdfJsDoc.numPages}`;
         btnPrevPage.disabled = index === 0;
         btnNextPage.disabled = index === currentEditorPdfJsDoc.numPages - 1;
@@ -996,12 +822,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Override/Extend Save Handler for Edit Mode
-    // Defined inside setMode/saveHandler block or separate? 
-    // Let's integrate into the main saveHandler via conditional, but implementing the logic here.
-
     async function saveEditedPDF() {
-        // 1. Save current page state final time
         if (fabricCanvas) {
             const json = fabricCanvas.toJSON(['id', 'selectable']);
             delete json.backgroundImage;
@@ -1010,13 +831,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
-
-            // Register fontkit
             pdfDoc.registerFontkit(fontkit);
-
-            // Load Japanese Font
             const fontUrl = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.woff2';
-
             let customFont = null;
             try {
                 const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
@@ -1032,33 +848,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!editorPages[i] || !editorPages[i].fabricJSON) continue;
 
                 const page = pages[i];
-                const { width, height } = page.getSize(); // PDF Point unit
-
-                // Fabric Canvas Dimensions (Scale 1.5)
-                // We need to scale coordinates back to PDF size (Scale 1.0)
+                const { width, height } = page.getSize();
                 const scaleFactor = 1 / 1.5;
-
                 const fabricData = editorPages[i].fabricJSON;
 
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
-                        // Apply Scale Factor to all coordinates/sizes
                         const x = obj.left * scaleFactor;
-                        // In PDF-lib, Y is from bottom-left. In Fabric, Y is form top-left.
-                        // We must flip Y.
                         const objHeight = (obj.height * obj.scaleY) * scaleFactor;
                         const y = height - (obj.top * scaleFactor) - objHeight;
 
                         if (obj.type === 'i-text' || obj.type === 'text') {
                             const fontSize = obj.fontSize * scaleFactor;
-                            // For Text, PDF-Lib Y is usually the baseline or bottom-left of the box depending on font?
-                            // Standard assumption: y is bottom-left of the text line. 
-                            // Fabric 'top' is top of the line height box.
-                            // Adjustment: y += fontSize * 0.8 approximately?
-                            // Let's try standard conversion first.
                             page.drawText(obj.text, {
                                 x: x,
-                                y: height - (obj.top * scaleFactor) - (fontSize * 0.88), // Empirical adjustment for approximate baseline
+                                y: height - (obj.top * scaleFactor) - (fontSize * 0.88),
                                 size: fontSize,
                                 font: customFont || undefined,
                                 color: hexToRgb(obj.fill),
@@ -1066,32 +870,27 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                         } else if (obj.type === 'rect') {
                             page.drawRectangle({
-                                x: x,
-                                y: y,
+                                x: x, y: y,
                                 width: (obj.width * obj.scaleX) * scaleFactor,
                                 height: objHeight,
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
-                                color: undefined, // Transparent fill
+                                color: undefined,
                             });
                         }
                     }
                 }
             }
-
             const pdfBytes = await pdfDoc.save();
             downloadFile(pdfBytes, "edited_document.pdf");
-
         } catch (err) {
             console.error(err);
             alert("保存に失敗しました: " + err.message);
         }
     }
-}
 
     function hexToRgb(hex) {
         if (!hex) return undefined;
-        // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
         var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
         hex = hex.replace(shorthandRegex, function (m, r, g, b) {
             return r + r + g + g + b + b;
