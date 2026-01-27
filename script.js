@@ -745,6 +745,39 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.on('object:scaling', updateToolbarPosition);
             fabricCanvas.on('object:resizing', updateToolbarPosition);
 
+            // オブジェクトがキャンバス外に出ないように制限
+            fabricCanvas.on('object:moving', (e) => {
+                const obj = e.target;
+                const canvas = obj.canvas;
+
+                // キャンバスのサイズ
+                const width = canvas.width;
+                const height = canvas.height;
+
+                // オブジェクトの現在のサイズ（拡大縮小を含む）
+                const objWidth = obj.getScaledWidth();
+                const objHeight = obj.getScaledHeight();
+
+                // --- 補正処理 ---
+
+                // 左にはみ出さない
+                if (obj.left < 0) {
+                    obj.left = 0;
+                }
+                // 上にはみ出さない
+                if (obj.top < 0) {
+                    obj.top = 0;
+                }
+                // 右にはみ出さない（右端 - オブジェクト幅）
+                if (obj.left + objWidth > width) {
+                    obj.left = width - objWidth;
+                }
+                // 下にはみ出さない（下端 - オブジェクト高さ）
+                if (obj.top + objHeight > height) {
+                    obj.top = height - objHeight;
+                }
+            });
+
             // Mouse Events for Creation
             fabricCanvas.on('mouse:down', onMouseDown);
             fabricCanvas.on('mouse:move', onMouseMove);
