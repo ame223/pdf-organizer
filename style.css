@@ -373,6 +373,27 @@ body {
 }
 
 /* Dragging State */
+.swatch-transparent {
+    background-color: #fff;
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==');
+    border: 1px solid #ddd;
+    position: relative;
+    overflow: hidden;
+}
+
+.swatch-transparent::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 150%;
+    height: 3px;
+    /* Thicker line */
+    background-color: #ff0000;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    z-index: 10;
+}
+
 .page-card.dragging {
     opacity: 0.4;
     border: 2px dashed var(--primary-color);
