@@ -789,6 +789,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function showFloatingToolbar(obj) {
         if (!obj) return;
 
+        // Show toolbar only for Text objects
+        if (obj.type !== 'textbox' && obj.type !== 'i-text') {
+            floatingToolbar.classList.add('hidden');
+            return;
+        }
+
         floatingToolbar.classList.remove('hidden');
 
         // --- Sync Values ---
