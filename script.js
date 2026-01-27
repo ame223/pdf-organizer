@@ -706,8 +706,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Floating Toolbar Elements
     const floatingToolbar = document.getElementById('floating-toolbar');
     const floatFontSize = document.getElementById('float-font-size');
-    const floatColor = document.getElementById('float-color');
+    // const floatColor = document.getElementById('float-color'); // Removed old one
     const floatBtnDelete = document.getElementById('float-btn-delete');
+
+    // New Toolbar Elements
+    const btnBold = document.getElementById('btn-bold');
+    const btnItalic = document.getElementById('btn-italic');
+    const btnUnderline = document.getElementById('btn-underline');
+    const btnAlignLeft = document.getElementById('btn-align-left');
+    const btnAlignCenter = document.getElementById('btn-align-center');
+    const btnAlignRight = document.getElementById('btn-align-right');
+
+    const floatTextColor = document.getElementById('float-text-color');
+    const previewTextColor = document.getElementById('preview-text-color');
+    const floatBgColor = document.getElementById('float-bg-color');
+    const previewBgColor = document.getElementById('preview-bg-color');
+    const btnBgTransparent = document.getElementById('btn-bg-transparent');
+
     const canvasContainer = document.getElementById('canvas-container');
 
     function initializeEditor() {
@@ -737,22 +752,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeObj = e.selected ? e.selected[0] : fabricCanvas.getActiveObject();
         if (activeObj) {
             showFloatingToolbar(activeObj);
-            updateEditorControlsOriginal(); // Keep original sidebar sync as well if needed
+            updateEditorControlsOriginal();
         }
     }
 
     function onSelectionCleared() {
         hideFloatingToolbar();
-        updateEditorControlsOriginal();
+        // updateEditorControlsOriginal();
     }
 
     function onObjectModified(e) {
-        // When object is scaled, we might want to normalize font size
         const obj = e.target;
         if (obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
-            // If scaled, the fontSize is visual only (fontSize * scaleX). 
-            // We want to update the input to show effective size OR normalize it.
-            // Strategy: Update input to show effective size.
             if (floatFontSize) {
                 floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
             }
@@ -762,18 +773,80 @@ document.addEventListener('DOMContentLoaded', () => {
     function showFloatingToolbar(obj) {
         if (!obj) return;
 
-        // Sync values
+        floatingToolbar.classList.remove('hidden');
+
+        // --- Sync Values ---
+
+        // Font Size
         if (obj.type === 'textbox' || obj.type === 'i-text') {
-            floatFontSize.parentElement.style.display = 'flex'; // Show font size
-            floatFontSize.value = Math.round(obj.fontSize * obj.scaleX); // Effective font size
-        } else {
-            floatFontSize.parentElement.style.display = 'none'; // Hide font size for shapes
+            floatFontSize.parentElement.style.display = 'flex';
+            floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
+
+            // Text Formatting State
+            btnBold.classList.toggle('active', obj.fontWeight === 'bold');
+            btnItalic.classList.toggle('active', obj.fontStyle === 'italic');
+            btnUnderline.classList.toggle('active', !!obj.underline);
+
+            btnBold.style.display = 'flex';
+            btnItalic.style.display = 'flex';
+            btnUnderline.style.display = 'flex';
+
+            // Alignment State
+            btnAlignLeft.classList.toggle('active', obj.textAlign === 'left');
+            btnAlignCenter.classList.toggle('active', obj.textAlign === 'center');
+            btnAlignRight.classList.toggle('active', obj.textAlign === 'right');
+
+            btnAlignLeft.parentElement.style.display = 'flex';
+
+            // Colors
+            const textColor = obj.fill || '#000000';
+            floatTextColor.value = typeof textColor === 'string' ? textColor : '#000000';
+            previewTextColor.style.backgroundColor = floatTextColor.value;
+
+            const bgColor = obj.backgroundColor || 'transparent'; // Fabric uses 'transparent' or null
+            if (bgColor && bgColor !== 'transparent') {
+                floatBgColor.value = bgColor;
+                previewBgColor.style.backgroundColor = bgColor;
+            } else {
+                floatBgColor.value = '#ffffff'; // Default picker value
+                previewBgColor.style.backgroundColor = 'transparent';
+                previewBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')'; // Checker
+            }
+            // Show Bg/Text controls
+            floatTextColor.parentElement.style.display = 'flex';
+            floatBgColor.parentElement.style.display = 'flex';
+
+        } else if (obj.type === 'rect') {
+            // Hide text-specific controls
+            floatFontSize.parentElement.style.display = 'none';
+            btnBold.style.display = 'none';
+            btnItalic.style.display = 'none';
+            btnUnderline.style.display = 'none';
+            btnAlignLeft.parentElement.style.display = 'none';
+
+            // Map Stroke/Fill for Rect
+            // We use Text Color picker for Fill/Stroke? 
+            // Let's use "Text Color" for Stroke (Border) and "Bg Color" for Fill?
+            // Or reuse the same pickers but treat them differently.
+            // Let's keep it simple: Rect uses sidebar primarily, or map Text Color -> Stroke, Bg Color -> Fill?
+            // Sidebar logic: editorColor -> stroke(rect) or fill(text).
+            // Let's map TextColor -> Stroke, BgColor -> Fill for Rect.
+
+            floatTextColor.parentElement.title = "枠線の色";
+            floatTextColor.value = obj.stroke || '#000000';
+            previewTextColor.style.backgroundColor = floatTextColor.value;
+
+            floatBgColor.parentElement.title = "塗りつぶし色";
+            const fillColor = obj.fill === 'transparent' ? '#ffffff' : (obj.fill || '#ffffff');
+            floatBgColor.value = fillColor;
+            previewBgColor.style.backgroundColor = obj.fill || 'transparent';
+            if (obj.fill === 'transparent') {
+                previewBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')';
+            } else {
+                previewBgColor.style.backgroundImage = 'none';
+            }
         }
 
-        const color = obj.fill || obj.stroke || '#000000';
-        floatColor.value = color;
-
-        floatingToolbar.classList.remove('hidden');
         updateToolbarPosition();
     }
 
@@ -787,18 +860,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeObj = fabricCanvas.getActiveObject();
         if (!activeObj) return;
 
-        // Calculate position relative to the canvas container
-        // Fabric coords are relative to canvas.
         const bound = activeObj.getBoundingRect();
-
-        // Improve positioning: Center above the object
-        // NOTE: canvasContainer must be relative for this absolute to work correctly relative to it.
-        // We added style="position: relative" to canvas-container in HTML.
-
-        const top = bound.top - 50; // 50px above
+        const top = bound.top - floatingToolbar.offsetHeight - 10;
         const left = bound.left + (bound.width / 2) - (floatingToolbar.offsetWidth / 2);
 
-        floatingToolbar.style.top = `${Math.max(0, top)}px`; // Don't go off top
+        floatingToolbar.style.top = `${Math.max(0, top)}px`;
         floatingToolbar.style.left = `${Math.max(0, left)}px`;
     }
 
@@ -812,7 +878,6 @@ document.addEventListener('DOMContentLoaded', () => {
         startY = pointer.y;
 
         if (currentEditorTool === 'text') {
-            // Visualize text box area
             drawingObject = new fabric.Rect({
                 left: startX,
                 top: startY,
@@ -864,37 +929,27 @@ document.addEventListener('DOMContentLoaded', () => {
         isDrawing = false;
 
         if (currentEditorTool === 'text') {
-            // Remove temporary rect
             fabricCanvas.remove(drawingObject);
 
-            // Check if it was a click (width ~ 0) or drag
             const width = drawingObject.width;
             const height = drawingObject.height;
-
-            // Default size if simple click
             const finalWidth = width > 20 ? width : 150;
-            const finalHeight = height > 20 ? height : undefined;
 
             const text = new fabric.Textbox('ここに入力', {
                 left: drawingObject.left,
                 top: drawingObject.top,
                 width: finalWidth,
                 fontFamily: 'Noto Sans JP',
-                fill: editorColor.value,
+                fill: '#000000', // Default black
                 fontSize: 24,
-                splitByGrapheme: true // Better wrapping for JP
+                splitByGrapheme: true,
+                backgroundColor: 'transparent'
             });
 
-            // Set control visibility - Allow resizing width, but maybe restrict scaling if key requirement?
-            // User requested: "Text size should not follow text box size"
-            // Fabric Default: Corner controls scale (change font size visually). Side controls resize width (change wrapping).
-            // We can keep default behavior BUT prioritize the toolbar input for size.
-            // Or we can lock scaling. Let's try locking scaling to force usage of input for font size,
-            // and force usage of side handles for wrapping (box size).
             text.setControlsVisibility({
-                mt: false, mb: false, ml: true, mr: true, // Sides for width
-                bl: false, br: false, tl: false, tr: false, // Corners hidden to prevent scaling
-                mtr: true // Rotation allowed
+                mt: false, mb: false, ml: true, mr: true,
+                bl: false, br: false, tl: false, tr: false,
+                mtr: true
             });
 
             fabricCanvas.add(text);
@@ -902,16 +957,14 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.renderAll();
 
         } else if (currentEditorTool === 'rect') {
-            // Keep the rect
             drawingObject.setCoords();
             fabricCanvas.setActiveObject(drawingObject);
         }
 
         drawingObject = null;
-        currentEditorTool = 'select'; // Switch back to select
+        currentEditorTool = 'select';
         fabricCanvas.defaultCursor = 'default';
 
-        // Reset buttons visual state
         btnAddText.classList.remove('is-primary');
         btnAddText.classList.add('is-outlined');
         btnAddRect.classList.remove('is-primary');
@@ -936,7 +989,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fabricCanvas.discardActiveObject();
         fabricCanvas.renderAll();
 
-        // Highlight button
         btnAddText.classList.remove('is-outlined');
         btnAddText.classList.add('is-primary');
         btnAddRect.classList.remove('is-primary');
@@ -955,34 +1007,105 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAddText.classList.add('is-outlined');
     });
 
-    // Toolbar Input Listeners
+    // --- Toolbar Interaction Handlers ---
+
+    // Style Toggles
+    btnBold.addEventListener('click', () => toggleStyle('fontWeight', 'bold', 'normal', btnBold));
+    btnItalic.addEventListener('click', () => toggleStyle('fontStyle', 'italic', 'normal', btnItalic));
+    btnUnderline.addEventListener('click', () => {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            const newVal = !activeObj.underline;
+            activeObj.set('underline', newVal);
+            fabricCanvas.renderAll();
+            btnUnderline.classList.toggle('active', newVal);
+        }
+    });
+
+    function toggleStyle(prop, activeVal, inactiveVal, btn) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            const current = activeObj[prop];
+            const newVal = current === activeVal ? inactiveVal : activeVal;
+            activeObj.set(prop, newVal);
+            fabricCanvas.renderAll();
+            btn.classList.toggle('active', newVal === activeVal);
+        }
+    }
+
+    // Alignment
+    btnAlignLeft.addEventListener('click', () => setAlign('left'));
+    btnAlignCenter.addEventListener('click', () => setAlign('center'));
+    btnAlignRight.addEventListener('click', () => setAlign('right'));
+
+    function setAlign(align) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            activeObj.set('textAlign', align);
+            fabricCanvas.renderAll();
+            // Update UI
+            btnAlignLeft.classList.toggle('active', align === 'left');
+            btnAlignCenter.classList.toggle('active', align === 'center');
+            btnAlignRight.classList.toggle('active', align === 'right');
+        }
+    }
+
+    // Font Size
     floatFontSize.addEventListener('input', (e) => {
         const val = parseInt(e.target.value, 10);
         const activeObj = fabricCanvas.getActiveObject();
         if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-            // Reset scale to 1 and apply new font size directly
-            // This ensures "size" is actual font size, not scaled size
             activeObj.set({
                 fontSize: val,
                 scaleX: 1,
                 scaleY: 1
             });
-            // Adjust width if needed or let it be? Textbox width remains constant usually.
             fabricCanvas.renderAll();
         }
     });
 
-    floatColor.addEventListener('input', (e) => {
+    // Text Color
+    floatTextColor.addEventListener('input', (e) => {
         const val = e.target.value;
+        previewTextColor.style.backgroundColor = val;
         const activeObj = fabricCanvas.getActiveObject();
         if (activeObj) {
             if (activeObj.type === 'rect') {
-                activeObj.set('stroke', val);
+                activeObj.set('stroke', val); // Map text color to border for rect
             } else {
                 activeObj.set('fill', val);
             }
-            // Sync with sidebar
-            editorColor.value = val;
+            fabricCanvas.renderAll();
+        }
+    });
+
+    // Bg Color
+    floatBgColor.addEventListener('input', (e) => {
+        const val = e.target.value;
+        previewBgColor.style.backgroundColor = val;
+        previewBgColor.style.backgroundImage = 'none';
+
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            if (activeObj.type === 'rect') {
+                activeObj.set('fill', val); // Map bg color to fill for rect
+            } else {
+                activeObj.set('backgroundColor', val);
+            }
+            fabricCanvas.renderAll();
+        }
+    });
+
+    btnBgTransparent.addEventListener('click', () => {
+        previewBgColor.style.backgroundColor = 'transparent';
+        previewBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')';
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            if (activeObj.type === 'rect') {
+                activeObj.set('fill', 'transparent');
+            } else {
+                activeObj.set('backgroundColor', ''); // Empty string for transparent
+            }
             fabricCanvas.renderAll();
         }
     });
@@ -1083,6 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Save Logic with Bold/Bg Logic ---
     async function saveEditedPDF() {
         if (fabricCanvas) {
             const json = fabricCanvas.toJSON(['id', 'selectable']);
@@ -1093,14 +1217,32 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
             pdfDoc.registerFontkit(fontkit);
-            const fontUrl = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.woff2';
-            let customFont = null;
+
+            // Fonts
+            // Noto Sans JP Regular
+            const fontUrlReg = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.woff2';
+            // Noto Sans JP Bold (Weight 700)
+            const fontUrlBold = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75v.woff2';
+
+            let fontRegular = null;
+            let fontBold = null;
+
             try {
-                const fontBytes = await fetch(fontUrl).then(res => res.arrayBuffer());
-                customFont = await pdfDoc.embedFont(fontBytes);
+                const [bytesReg, bytesBold] = await Promise.all([
+                    fetch(fontUrlReg).then(res => res.arrayBuffer()),
+                    fetch(fontUrlBold).then(res => res.arrayBuffer()).catch(e => {
+                        console.warn("Failed to load bold font", e);
+                        return null; // Fallback
+                    })
+                ]);
+
+                fontRegular = await pdfDoc.embedFont(bytesReg);
+                if (bytesBold) {
+                    fontBold = await pdfDoc.embedFont(bytesBold);
+                }
             } catch (e) {
-                console.warn("Could not load JP font, falling back to standard.", e);
-                alert("日本語フォントの読み込みに失敗しました。標準フォントを使用するため、日本語が文字化けする可能性があります。");
+                console.warn("Could not load JP fonts.", e);
+                alert("日本語フォントの読み込みに失敗しました。");
             }
 
             const pages = pdfDoc.getPages();
@@ -1116,50 +1258,68 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
                         const x = obj.left * scaleFactor;
-                        // const y = height - (obj.top * scaleFactor) - (obj.height * scaleFactor); // wrong logic in previous try?
-                        // Recalculate Y properly.
-                        // Fabric: top-left. PDF-Lib: bottom-left.
                         const objHeight = (obj.height * obj.scaleY) * scaleFactor;
+                        const objWidth = (obj.width * obj.scaleX) * scaleFactor;
                         const y = height - (obj.top * scaleFactor) - objHeight;
 
-                        if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') { // Added 'textbox'
-                            // For Textbox, width is important for wrapping.
-                            // PDF-Lib drawText implements wrapping with maxWidth.
-                            // But we need to check if we can replicate the exact wrapping of Fabric.
-                            // Fabric wrapping is complex. PDF-Lib wraps if maxWidth is provided.
+                        if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                            const fontSize = obj.fontSize * obj.scaleX * scaleFactor;
 
-                            const fontSize = obj.fontSize * obj.scaleX * scaleFactor; // Include scaleX if we allowed scaling
-                            // Note: if we reset scaleX to 1 in UI, then obj.scaleX should be 1.
+                            // Select Font
+                            const useBold = obj.fontWeight === 'bold' && fontBold;
+                            const activeFont = useBold ? fontBold : (fontRegular || undefined);
 
+                            // Background Color
+                            if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
+                                page.drawRectangle({
+                                    x: x,
+                                    y: y, // Fabric top-left
+                                    width: objWidth,
+                                    height: objHeight,
+                                    color: hexToRgb(obj.backgroundColor)
+                                });
+                            }
+
+                            // Text
                             const textOptions = {
                                 x: x,
-                                // Baseline adjustment. Fabric 'top' is top of bbox.
-                                // PDF-Lib Y is bottom-left of first line? Or line height dependent.
-                                // Standard PDF drawText Y is the baseline of the first line if using standard fonts?
-                                // Actually page.drawText y argument is the bottom of the text block? No, it's the Y coordinate to start drawing.
-                                // It usually corresponds to the baseline of the first line.
                                 y: height - (obj.top * scaleFactor) - (fontSize * 0.88),
                                 size: fontSize,
-                                font: customFont || undefined,
+                                font: activeFont,
                                 color: hexToRgb(obj.fill),
                                 lineHeight: obj.lineHeight,
                             };
 
-                            // Apply maxWidth for wrapping if it's a textbox
                             if (obj.type === 'textbox') {
-                                textOptions.maxWidth = obj.width * obj.scaleX * scaleFactor;
+                                textOptions.maxWidth = objWidth;
                             }
 
                             page.drawText(obj.text, textOptions);
 
+                            // Underline (Manual)
+                            if (obj.underline) {
+                                // Estimate width if not available from textbox
+                                // Textbox usually fills width.
+                                // For single line, width might be smaller? no, textbox width is fixed box.
+                                // Let's draw line across the text box width or try to measure text?
+                                // Textbox width is explicit.
+                                const lineY = textOptions.y - 2; // Slightly below baseline
+                                page.drawLine({
+                                    start: { x: x, y: lineY },
+                                    end: { x: x + objWidth, y: lineY }, // Use full box width for now
+                                    thickness: Math.max(1, fontSize / 15),
+                                    color: hexToRgb(obj.fill)
+                                });
+                            }
+
                         } else if (obj.type === 'rect') {
                             page.drawRectangle({
                                 x: x, y: y,
-                                width: (obj.width * obj.scaleX) * scaleFactor,
+                                width: objWidth,
                                 height: objHeight,
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
-                                color: undefined,
+                                color: obj.fill === 'transparent' ? undefined : hexToRgb(obj.fill),
                             });
                         }
                     }

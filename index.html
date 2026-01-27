@@ -135,34 +135,74 @@
                     <div id="floating-toolbar" class="hidden" style="
                        position: absolute; 
                        background: white; 
-                       border-radius: 4px; 
-                       box-shadow: 0 2px 8px rgba(0,0,0,0.2); 
-                       padding: 8px; 
+                       border-radius: 8px; 
+                       box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
+                       padding: 8px 12px; 
                        display: flex; 
-                       gap: 8px; 
+                       gap: 12px; 
                        align-items: center;
                        z-index: 100;
-                       border: 1px solid #ddd;
+                       border: 1px solid #eee;
+                       flex-wrap: wrap;
+                       max-width: 600px;
                    ">
-                        <!-- Font Size Control -->
-                        <div class="toolbar-item" style="display: flex; align-items: center; gap: 4px;">
-                            <i class="material-icons" style="font-size: 16px; color: #666;">format_size</i>
-                            <input type="number" id="float-font-size" value="24" min="8" max="200"
-                                style="width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                        <!-- Font Size -->
+                        <div class="toolbar-group">
+                            <i class="material-icons" style="font-size: 18px; color: #555;">format_size</i>
+                            <input type="number" id="float-font-size" value="24" min="8" max="200" title="フォントサイズ"
+                                style="width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
                         </div>
 
-                        <!-- Color Picker -->
-                        <div class="toolbar-item" style="display: flex; align-items: center; gap: 4px;">
-                            <input type="color" id="float-color" value="#000000"
-                                style="border: none; width: 24px; height: 24px; cursor: pointer; padding: 0;">
+                        <div class="divider"></div>
+
+                        <!-- Text Style -->
+                        <div class="toolbar-group">
+                            <button id="btn-bold" class="btn-tool" title="太字 (Bold)"><i
+                                    class="material-icons">format_bold</i></button>
+                            <button id="btn-italic" class="btn-tool" title="斜体 (Italic)"><i
+                                    class="material-icons">format_italic</i></button>
+                            <button id="btn-underline" class="btn-tool" title="下線 (Underline)"><i
+                                    class="material-icons">format_underlined</i></button>
                         </div>
 
-                        <!-- Divider -->
-                        <div style="width: 1px; height: 20px; background: #eee;"></div>
+                        <div class="divider"></div>
 
-                        <!-- Delete Button -->
-                        <button id="float-btn-delete" class="btn is-text"
-                            style="padding: 4px; color: #f44336; min-width: auto;">
+                        <!-- Alignment (Dropdown style but inline for now as requested 'like screenshot') -->
+                        <div class="toolbar-group">
+                            <button id="btn-align-left" class="btn-tool" title="左揃え"><i
+                                    class="material-icons">format_align_left</i></button>
+                            <button id="btn-align-center" class="btn-tool" title="中央揃え"><i
+                                    class="material-icons">format_align_center</i></button>
+                            <button id="btn-align-right" class="btn-tool" title="右揃え"><i
+                                    class="material-icons">format_align_right</i></button>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Colors -->
+                        <div class="toolbar-group" style="position: relative;">
+                            <!-- Text Color -->
+                            <div class="color-picker-wrapper" title="文字色">
+                                <i class="material-icons" style="color: #555;">format_color_text</i>
+                                <div class="color-preview" id="preview-text-color" style="background: #000;"></div>
+                                <input type="color" id="float-text-color" value="#000000">
+                            </div>
+
+                            <!-- Bg Color -->
+                            <div class="color-picker-wrapper" title="背景色">
+                                <i class="material-icons" style="color: #555;">format_color_fill</i>
+                                <div class="color-preview" id="preview-bg-color"
+                                    style="background: transparent; border: 1px solid #ddd;"></div>
+                                <input type="color" id="float-bg-color" value="#ffffff">
+                                <button id="btn-bg-transparent" title="背景色なし"
+                                    style="width: 20px; height: 20px; border: 1px solid #ddd; background: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg=='); cursor: pointer; margin-left: 4px;"></button>
+                            </div>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <!-- Delete -->
+                        <button id="float-btn-delete" class="btn-tool delete-btn" title="削除">
                             <i class="material-icons">delete</i>
                         </button>
                     </div>
