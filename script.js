@@ -955,17 +955,42 @@ document.addEventListener('DOMContentLoaded', () => {
         if (floatingToolbar.classList.contains('hidden')) return;
 
         const activeObj = fabricCanvas.getActiveObject();
-        if (!activeObj) { // Double check
+        if (!activeObj) {
             hideFloatingToolbar();
             return;
         }
 
         const bound = activeObj.getBoundingRect();
-        const top = bound.top - floatingToolbar.offsetHeight - 10;
-        const left = bound.left + (bound.width / 2) - (floatingToolbar.offsetWidth / 2);
 
-        floatingToolbar.style.top = `${Math.max(0, top)}px`;
-        floatingToolbar.style.left = `${Math.max(0, left)}px`;
+        // ツールバーと画面のサイズを取得
+        const toolbarWidth = floatingToolbar.offsetWidth;
+        const toolbarHeight = floatingToolbar.offsetHeight;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // 基本位置（オブジェクトの中央上部）
+        let top = bound.top - toolbarHeight - 10;
+        let left = bound.left + (bound.width / 2) - (toolbarWidth / 2);
+
+        // --- 画面端の補正処理 ---
+
+        // 1. 左端チェック
+        if (left < 0) {
+            left = 10; // 少し余白を持たせる
+        }
+
+        // 2. 右端チェック（ツールバーが右にはみ出す場合、左にずらす）
+        if (left + toolbarWidth > windowWidth) {
+            left = windowWidth - toolbarWidth - 20; // スクロールバー等を考慮して少し余白
+        }
+
+        // 3. 上端チェック（画面上にはみ出す場合、オブジェクトの下に表示）
+        if (top < 0) {
+            top = bound.top + bound.height + 10;
+        }
+
+        floatingToolbar.style.top = `${top}px`;
+        floatingToolbar.style.left = `${left}px`;
     }
 
     function rgbToHex(r, g, b) {

@@ -133,19 +133,21 @@
 
                     <!-- Floating Toolbar for Contextual Editing -->
                     <div id="floating-toolbar" class="hidden" style="
-                       position: absolute; 
-                       background: white; 
-                       border-radius: 8px; 
-                       box-shadow: 0 4px 12px rgba(0,0,0,0.15); 
-                       padding: 8px 12px; 
-                       display: flex; 
-                       gap: 12px; 
-                       align-items: center;
-                       z-index: 100;
-                       border: 1px solid #eee;
-                       flex-wrap: wrap;
-                       max-width: 600px;
-                   ">
+        position: absolute;
+        top: 0;
+        left: 0;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        padding: 5px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        z-index: 1000;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        max-width: none;
+    ">
                         <!-- Font Size -->
                         <div class="toolbar-group">
                             <i class="material-icons" style="font-size: 18px; color: #555;">format_size</i>
