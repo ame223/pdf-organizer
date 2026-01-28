@@ -1788,7 +1788,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadEditorPage(index) {
         // 現在のページ状態を保存
         if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
-            const json = fabricCanvas.toJSON(['id', 'selectable']);
+            const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor']); // カスタムプロパティを追加で保存
             delete json.backgroundImage;
             editorPages[currentEditorPageIndex].fabricJSON = json;
         }
