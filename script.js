@@ -858,7 +858,8 @@ document.addEventListener('DOMContentLoaded', () => {
             historyStack = historyStack.slice(0, historyIndex + 1);
         }
 
-        const json = fabricCanvas.toJSON(['id', 'selectable']);
+        // ★修正点: boxHeight, boxBorderWidth, boxBorderColor を保存対象に追加
+        const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor']);
         delete json.backgroundImage; // 背景は除外して軽量化
 
         historyStack.push(json);

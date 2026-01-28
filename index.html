@@ -199,7 +199,7 @@
                             style="box-shadow: 0 4px 10px rgba(0,0,0,0.2); border: 1px solid #ccc;">
                             <canvas id="fabric-canvas"></canvas>
                         </div>
-<div id="floating-toolbar" class="hidden" style="
+                        <div id="floating-toolbar" class="hidden" style="
     position: absolute;
     top: 0;
     left: 0;
@@ -216,174 +216,166 @@
     width: max-content; /* これで横並びを強制 */
     max-width: none;
 ">
-    <div class="toolbar-group" style="flex-shrink: 0;">
-        <i class="material-icons" style="font-size: 18px; color: #555;">line_weight</i>
-        <input type="number" id="float-stroke-width" value="0" min="0" max="20" title="線の太さ"
-            style="width: 40px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
-        <div class="divider"></div>
-    </div>
+                            <div class="toolbar-group" style="flex-shrink: 0;">
+                                <i class="material-icons" style="font-size: 18px; color: #555;">line_weight</i>
+                                <input type="number" id="float-stroke-width" value="0" min="0" max="20" title="線の太さ"
+                                    style="width: 40px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
+                                <div class="divider"></div>
+                            </div>
 
-    <div id="toolbar-text-tools" style="display: flex; align-items: center; gap: 5px;">
-        
-        <div class="toolbar-group" style="flex-shrink: 0;">
-            <i class="material-icons" style="font-size: 18px; color: #555;">format_size</i>
-            <input type="number" id="float-font-size" value="24" min="8" max="200" title="フォントサイズ"
-                style="width: 40px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
-        </div>
+                            <div id="toolbar-text-tools" style="display: flex; align-items: center; gap: 5px;">
 
-        <div class="divider"></div>
-
-        <div class="toolbar-group" style="flex-shrink: 0;">
-            <button id="btn-bold" class="btn-tool" title="太字 (Bold)"><i class="material-icons">format_bold</i></button>
-            <button id="btn-italic" class="btn-tool" title="斜体 (Italic)"><i class="material-icons">format_italic</i></button>
-            <button id="btn-underline" class="btn-tool" title="下線 (Underline)"><i class="material-icons">format_underlined</i></button>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="toolbar-group" style="flex-shrink: 0;">
-            <button id="btn-align-left" class="btn-tool" title="左揃え"><i class="material-icons">format_align_left</i></button>
-            <button id="btn-align-center" class="btn-tool" title="中央揃え"><i class="material-icons">format_align_center</i></button>
-            <button id="btn-align-right" class="btn-tool" title="右揃え"><i class="material-icons">format_align_right</i></button>
-        </div>
-
-        <div class="divider"></div>
-    </div>
-
-    <div class="toolbar-group" style="position: relative; flex-shrink: 0;">
-        <div class="tool-wrapper" style="position: relative;">
-            <button id="btn-text-color-trigger" class="btn-tool" title="文字色">
-                <span style="font-weight: 900; font-family: 'Times New Roman', serif; font-size: 20px; color: #555; line-height: 1;">A</span>
-                <div id="indicator-text-color" style="width: 14px; height: 5px; background: #000; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;"></div>
-            </button>
-            <div id="popup-text-color" class="popup-panel hidden">
-                <div class="color-presets">
-                    <button class="color-swatch" data-color="#000000" style="background: #000000;"></button>
-                    <button class="color-swatch" data-color="#F44336" style="background: #F44336;"></button>
-                    <button class="color-swatch" data-color="#2196F3" style="background: #2196F3;"></button>
-                    <button class="color-swatch" data-color="#4CAF50" style="background: #4CAF50;"></button>
-                    <button class="color-swatch" data-color="#FFEB3B" style="background: #FFEB3B;"></button>
-                    <button class="color-swatch" data-color="#9C27B0" style="background: #9C27B0;"></button>
-                    <button class="color-swatch" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ddd;"></button>
-                </div>
-                <div class="divider-h"></div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 12px; color: #666; white-space: nowrap;">カスタム:</span>
-                    <input type="color" id="float-text-color" value="#000000" style="cursor: pointer; width: 100%;">
-                </div>
-            </div>
-        </div>
-
-        <div class="tool-wrapper" style="position: relative;">
-            <button id="btn-bg-color-trigger" class="btn-tool" title="背景色">
-                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: #555;">
-                    <path d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12z M5.21 10L10 5.21 14.79 10H5.21z M19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z" />
-                </svg>
-                <div id="indicator-bg-color" style="width: 14px; height: 5px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;"></div>
-            </button>
-            <div id="popup-bg-color" class="popup-panel hidden">
-                <div class="color-presets">
-                    <button class="color-swatch swatch-transparent" data-color="transparent" title="なし"></button>
-                    <button class="color-swatch" data-color="#FFFFFF" style="background: #FFFFFF; border: 1px solid #ddd;"></button>
-                    <button class="color-swatch" data-color="#FFEB3B" style="background: #FFEB3B;"></button>
-                    <button class="color-swatch" data-color="#FFCDD2" style="background: #FFCDD2;"></button>
-                    <button class="color-swatch" data-color="#BBDEFB" style="background: #BBDEFB;"></button>
-                    <button class="color-swatch" data-color="#C8E6C9" style="background: #C8E6C9;"></button>
-                    <button class="color-swatch" data-color="#E1BEE7" style="background: #E1BEE7;"></button>
-                </div>
-                <div class="divider-h"></div>
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <span style="font-size: 12px; color: #666; white-space: nowrap;">カスタム:</span>
-                    <input type="color" id="float-bg-color" value="#ffffff" style="cursor: pointer; width: 100%;">
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 12px; color: #666; white-space: nowrap;">不透明度:</span>
-                    <input type="range" id="bg-opacity" min="0" max="1" step="0.1" value="1" style="flex: 1;">
-                </div>
-            </div>
-        </div>
-
-        <div id="wrapper-border-color" class="tool-wrapper" style="display: none;">
-            <button id="btn-border-color-trigger" class="btn-tool" title="枠線の色">
-                <i class="material-icons" style="font-size: 20px;">check_box_outline_blank</i>
-                <div id="indicator-border-color" style="width: 14px; height: 5px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;"></div>
-            </button>
-            <div id="popup-border-color" class="popup-panel hidden">
-                <div class="color-presets">
-                    <button class="color-swatch swatch-transparent" data-color="transparent" title="なし"></button>
-                    <button class="color-swatch" data-color="#000000" style="background: #000;"></button>
-                    <button class="color-swatch" data-color="#ff0000" style="background: #f00;"></button>
-                    <button class="color-swatch" data-color="#0000ff" style="background: #00f;"></button>
-                </div>
-                <div class="divider-h"></div>
-                <input type="color" id="float-border-color" value="#000000" style="width: 100%;">
-            </div>
-        </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <button id="btn-delete-obj" class="btn is-text" title="削除" style="flex-shrink: 0;"><i class="material-icons">delete</i></button>
-</div>
-                        <!-- Bg Color -->
-                        <div class="tool-wrapper" style="position: relative;">
-                            <button id="btn-bg-color-trigger" class="btn-tool" title="背景色">
-                                <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: #555;">
-                                    <path
-                                        d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12z M5.21 10L10 5.21 14.79 10H5.21z M19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z" />
-                                </svg>
-                                <div id="indicator-bg-color"
-                                    style="width: 14px; height: 5px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
+                                <div class="toolbar-group" style="flex-shrink: 0;">
+                                    <i class="material-icons" style="font-size: 18px; color: #555;">format_size</i>
+                                    <input type="number" id="float-font-size" value="24" min="8" max="200"
+                                        title="フォントサイズ"
+                                        style="width: 40px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
                                 </div>
-                            </button>
-                            <!-- Popup -->
-                            <div id="popup-bg-color" class="popup-panel hidden">
-                                <div class="color-presets">
-                                    <button class="color-swatch swatch-transparent" data-color="transparent"
-                                        title="なし"></button>
-                                    <button class="color-swatch" data-color="#FFFFFF"
-                                        style="background: #FFFFFF; border: 1px solid #ddd;"></button>
-                                    <button class="color-swatch" data-color="#FFEB3B"
-                                        style="background: #FFEB3B;"></button>
-                                    <button class="color-swatch" data-color="#FFCDD2"
-                                        style="background: #FFCDD2;"></button>
-                                    <button class="color-swatch" data-color="#BBDEFB"
-                                        style="background: #BBDEFB;"></button>
-                                    <button class="color-swatch" data-color="#C8E6C9"
-                                        style="background: #C8E6C9;"></button>
-                                    <button class="color-swatch" data-color="#E1BEE7"
-                                        style="background: #E1BEE7;"></button>
+
+                                <div class="divider"></div>
+
+                                <div class="toolbar-group" style="flex-shrink: 0;">
+                                    <button id="btn-bold" class="btn-tool" title="太字 (Bold)"><i
+                                            class="material-icons">format_bold</i></button>
+                                    <button id="btn-italic" class="btn-tool" title="斜体 (Italic)"><i
+                                            class="material-icons">format_italic</i></button>
+                                    <button id="btn-underline" class="btn-tool" title="下線 (Underline)"><i
+                                            class="material-icons">format_underlined</i></button>
                                 </div>
-                                <div class="divider-h"></div>
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                    <span style="font-size: 12px; color: #666; white-space: nowrap;">カスタム:</span>
-                                    <input type="color" id="float-bg-color" value="#ffffff"
-                                        style="cursor: pointer; width: 100%;">
+
+                                <div class="divider"></div>
+
+                                <div class="toolbar-group" style="flex-shrink: 0;">
+                                    <button id="btn-align-left" class="btn-tool" title="左揃え"><i
+                                            class="material-icons">format_align_left</i></button>
+                                    <button id="btn-align-center" class="btn-tool" title="中央揃え"><i
+                                            class="material-icons">format_align_center</i></button>
+                                    <button id="btn-align-right" class="btn-tool" title="右揃え"><i
+                                            class="material-icons">format_align_right</i></button>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <span style="font-size: 12px; color: #666; white-space: nowrap;">不透明度:</span>
-                                    <input type="range" id="bg-opacity" min="0" max="1" step="0.1" value="1"
-                                        style="flex: 1;">
+
+                                <div class="divider"></div>
+                            </div>
+
+                            <div class="toolbar-group" style="position: relative; flex-shrink: 0;">
+                                <div class="tool-wrapper" style="position: relative;">
+                                    <button id="btn-text-color-trigger" class="btn-tool" title="文字色">
+                                        <span
+                                            style="font-weight: 900; font-family: 'Times New Roman', serif; font-size: 20px; color: #555; line-height: 1;">A</span>
+                                        <div id="indicator-text-color"
+                                            style="width: 14px; height: 5px; background: #000; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
+                                        </div>
+                                    </button>
+                                    <div id="popup-text-color" class="popup-panel hidden">
+                                        <div class="color-presets">
+                                            <button class="color-swatch" data-color="#000000"
+                                                style="background: #000000;"></button>
+                                            <button class="color-swatch" data-color="#F44336"
+                                                style="background: #F44336;"></button>
+                                            <button class="color-swatch" data-color="#2196F3"
+                                                style="background: #2196F3;"></button>
+                                            <button class="color-swatch" data-color="#4CAF50"
+                                                style="background: #4CAF50;"></button>
+                                            <button class="color-swatch" data-color="#FFEB3B"
+                                                style="background: #FFEB3B;"></button>
+                                            <button class="color-swatch" data-color="#9C27B0"
+                                                style="background: #9C27B0;"></button>
+                                            <button class="color-swatch" data-color="#FFFFFF"
+                                                style="background: #FFFFFF; border: 1px solid #ddd;"></button>
+                                        </div>
+                                        <div class="divider-h"></div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span
+                                                style="font-size: 12px; color: #666; white-space: nowrap;">カスタム:</span>
+                                            <input type="color" id="float-text-color" value="#000000"
+                                                style="cursor: pointer; width: 100%;">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="tool-wrapper" style="position: relative;">
+                                    <button id="btn-bg-color-trigger" class="btn-tool" title="背景色">
+                                        <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: #555;">
+                                            <path
+                                                d="M16.56 8.94L7.62 0 6.21 1.41l2.38 2.38-5.15 5.15c-.59.59-.59 1.54 0 2.12l5.5 5.5c.29.29.68.44 1.06.44s.77-.15 1.06-.44l5.5-5.5c.59-.58.59-1.53 0-2.12z M5.21 10L10 5.21 14.79 10H5.21z M19 11.5s-2 2.17-2 3.5c0 1.1.9 2 2 2s2-.9 2-2c0-1.33-2-3.5-2-3.5z" />
+                                        </svg>
+                                        <div id="indicator-bg-color"
+                                            style="width: 14px; height: 5px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
+                                        </div>
+                                    </button>
+                                    <div id="popup-bg-color" class="popup-panel hidden">
+                                        <div class="color-presets">
+                                            <button class="color-swatch swatch-transparent" data-color="transparent"
+                                                title="なし"></button>
+                                            <button class="color-swatch" data-color="#FFFFFF"
+                                                style="background: #FFFFFF; border: 1px solid #ddd;"></button>
+                                            <button class="color-swatch" data-color="#FFEB3B"
+                                                style="background: #FFEB3B;"></button>
+                                            <button class="color-swatch" data-color="#FFCDD2"
+                                                style="background: #FFCDD2;"></button>
+                                            <button class="color-swatch" data-color="#BBDEFB"
+                                                style="background: #BBDEFB;"></button>
+                                            <button class="color-swatch" data-color="#C8E6C9"
+                                                style="background: #C8E6C9;"></button>
+                                            <button class="color-swatch" data-color="#E1BEE7"
+                                                style="background: #E1BEE7;"></button>
+                                        </div>
+                                        <div class="divider-h"></div>
+                                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                            <span
+                                                style="font-size: 12px; color: #666; white-space: nowrap;">カスタム:</span>
+                                            <input type="color" id="float-bg-color" value="#ffffff"
+                                                style="cursor: pointer; width: 100%;">
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span
+                                                style="font-size: 12px; color: #666; white-space: nowrap;">不透明度:</span>
+                                            <input type="range" id="bg-opacity" min="0" max="1" step="0.1" value="1"
+                                                style="flex: 1;">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="wrapper-border-color" class="tool-wrapper" style="display: none;">
+                                    <button id="btn-border-color-trigger" class="btn-tool" title="枠線の色">
+                                        <i class="material-icons" style="font-size: 20px;">check_box_outline_blank</i>
+                                        <div id="indicator-border-color"
+                                            style="width: 14px; height: 5px; background: transparent; border: 1px solid #ddd; position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); border-radius: 1px;">
+                                        </div>
+                                    </button>
+                                    <div id="popup-border-color" class="popup-panel hidden">
+                                        <div class="color-presets">
+                                            <button class="color-swatch swatch-transparent" data-color="transparent"
+                                                title="なし"></button>
+                                            <button class="color-swatch" data-color="#000000"
+                                                style="background: #000;"></button>
+                                            <button class="color-swatch" data-color="#ff0000"
+                                                style="background: #f00;"></button>
+                                            <button class="color-swatch" data-color="#0000ff"
+                                                style="background: #00f;"></button>
+                                        </div>
+                                        <div class="divider-h"></div>
+                                        <input type="color" id="float-border-color" value="#000000"
+                                            style="width: 100%;">
+                                    </div>
                                 </div>
                             </div>
+
+                            <div class="divider"></div>
+
+                            <button id="btn-delete-obj" class="btn is-text" title="削除" style="flex-shrink: 0;"><i
+                                    class="material-icons">delete</i></button>
                         </div>
+
+
                     </div>
-
-                    <div class="divider"></div>
-
-                    <!-- Trash -->
-                    <button id="btn-delete-obj" class="btn is-text" title="削除"><i
-                            class="material-icons">delete</i></button>
                 </div>
+            </section>
 
-        </div>
-        </div>
-        </section>
-
-        <!-- Preview Grid -->
-        <section id="preview-area" class="preview-area">
-            <!-- Thumbnails will be injected here via JS -->
-        </section>
+            <!-- Preview Grid -->
+            <section id="preview-area" class="preview-area">
+                <!-- Thumbnails will be injected here via JS -->
+            </section>
         </div>
 
     </main>
