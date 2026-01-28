@@ -1370,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // テキストか図形かで表示切り替え
         const isText = (obj.type === 'textbox' || obj.type === 'i-text');
-        
+
         // ★追加: 枠線色ラッパー要素の取得
         const wrapperBorderColor = document.getElementById('wrapper-border-color');
 
@@ -1722,7 +1722,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (floatStrokeWidth) {
         floatStrokeWidth.addEventListener('input', (e) => {
             const val = parseInt(e.target.value, 10);
-            
+
             // 単一選択か複数選択かに関わらず、すべての対象を取得
             const activeObjects = fabricCanvas.getActiveObjects();
 
@@ -1730,13 +1730,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeObjects.forEach(obj => {
                     if (obj.type === 'textbox' || obj.type === 'i-text') {
                         // テキストボックスは独自の枠線プロパティ
-                        obj.set('boxBorderWidth', val);
+                        obj.set({
+                            'boxBorderWidth': val,
+                            'dirty': true
+                        });
                     } else {
                         // 図形は標準の枠線プロパティ
                         obj.set('strokeWidth', val);
                     }
                 });
-                
+
                 fabricCanvas.requestRenderAll();
                 saveHistory(); // 履歴に保存
             }
@@ -1749,7 +1752,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const val = e.target.value;
             const activeObj = fabricCanvas.getActiveObject();
             if (activeObj && activeObj.type === 'textbox') {
-                activeObj.set('boxBorderColor', val);
+                activeObj.set({
+                    'boxBorderColor': val,
+                    'dirty': true
+                });
                 indicatorBorderColor.style.backgroundColor = val;
                 fabricCanvas.renderAll();
             }
@@ -1774,7 +1780,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const color = swatch.dataset.color;
                 const activeObj = fabricCanvas.getActiveObject();
                 if (activeObj && activeObj.type === 'textbox') {
-                    activeObj.set('boxBorderColor', color);
+                    activeObj.set({
+                        'boxBorderColor': color,
+                        'dirty': true
+                    });
                     if (color === 'transparent') {
                         activeObj.set('boxBorderWidth', 0); // 透明なら太さ0
                         floatStrokeWidth.value = 0;
@@ -1839,38 +1848,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnDeleteObj) {
-// 1. ボタン要素を複製し、古いイベントリスナーを全て強制削除する
-const newBtn = btnDeleteObj.cloneNode(true);
-if (btnDeleteObj.parentNode) {
-    btnDeleteObj.parentNode.replaceChild(newBtn, btnDeleteObj);
-}
+        // 1. ボタン要素を複製し、古いイベントリスナーを全て強制削除する
+        const newBtn = btnDeleteObj.cloneNode(true);
+        if (btnDeleteObj.parentNode) {
+            btnDeleteObj.parentNode.replaceChild(newBtn, btnDeleteObj);
+        }
 
-// 2. 新しいボタンに mousedown イベントを設定（クリック競合を回避）
-newBtn.addEventListener('mousedown', (e) => {
-    // フォーカス移動とイベント伝播を確実に止める
-    e.preventDefault();
-    e.stopPropagation();
+        // 2. 新しいボタンに mousedown イベントを設定（クリック競合を回避）
+        newBtn.addEventListener('mousedown', (e) => {
+            // フォーカス移動とイベント伝播を確実に止める
+            e.preventDefault();
+            e.stopPropagation();
 
-    if (!fabricCanvas) return;
+            if (!fabricCanvas) return;
 
-    // 選択されている全オブジェクトを取得（単一・複数対応）
-    const activeObjects = fabricCanvas.getActiveObjects();
+            // 選択されている全オブジェクトを取得（単一・複数対応）
+            const activeObjects = fabricCanvas.getActiveObjects();
 
-    if (activeObjects && activeObjects.length > 0) {
-        // 3. 処理前に選択状態を解除（エラー防止）
-        fabricCanvas.discardActiveObject();
+            if (activeObjects && activeObjects.length > 0) {
+                // 3. 処理前に選択状態を解除（エラー防止）
+                fabricCanvas.discardActiveObject();
 
-        // 4. オブジェクトを削除
-        activeObjects.forEach((obj) => {
-            fabricCanvas.remove(obj);
+                // 4. オブジェクトを削除
+                activeObjects.forEach((obj) => {
+                    fabricCanvas.remove(obj);
+                });
+
+                // 5. 画面更新と履歴保存
+                fabricCanvas.requestRenderAll();
+                hideFloatingToolbar();
+                saveHistory();
+            }
         });
-
-        // 5. 画面更新と履歴保存
-        fabricCanvas.requestRenderAll();
-        hideFloatingToolbar();
-        saveHistory();
-    }
-});
     }
 
     // 他のツールボタンにも同様の処置を適用
