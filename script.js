@@ -327,9 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
             previewArea.classList.add('hidden');
             editorArea.classList.remove('hidden');
 
-            // ★修正点1: ツールバーのコントロールを再表示（バグ修正）
-            editorControls.classList.remove('hidden');
-
             // 読み込まれたファイルのうち、最新のものを取得（既存への追記用）
             // ★修正点2: loadedFilesの末尾（最新）を取得して追加処理へ回す
             const newFileIndex = loadedFiles.length - 1;
@@ -1802,4 +1799,44 @@ document.addEventListener('DOMContentLoaded', () => {
             parseInt(result[3], 16) / 255
         ) : undefined;
     }
+
+    // --- Zoom Logic ---
+    function updateZoomDisplay() {
+        if (!zoomLevelText || !canvasWrapper) return;
+
+        // 表示倍率テキスト更新
+        zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+
+        // CSS Transformで拡大縮小
+        // 起点を中央上に設定して自然なズームにする
+        canvasWrapper.style.transformOrigin = 'top center';
+        canvasWrapper.style.transform = `scale(${currentZoomScale})`;
+
+        // 拡大時に下の要素と被らないようにマージンを調整（簡易対応）
+        if (currentZoomScale > 1) {
+            canvasWrapper.style.marginTop = `${(currentZoomScale - 1) * 20}px`;
+            canvasWrapper.style.marginBottom = `${(currentZoomScale - 1) * 20}px`;
+        } else {
+            canvasWrapper.style.marginTop = '0';
+            canvasWrapper.style.marginBottom = '0';
+        }
+    }
+
+    // ボタンイベントの設定
+    if (btnZoomIn && btnZoomOut) {
+        btnZoomIn.addEventListener('click', () => {
+            if (currentZoomScale < 3.0) { // 最大300%
+                currentZoomScale += 0.1;
+                updateZoomDisplay();
+            }
+        });
+
+        btnZoomOut.addEventListener('click', () => {
+            if (currentZoomScale > 0.3) { // 最小30%
+                currentZoomScale -= 0.1;
+                updateZoomDisplay();
+            }
+        });
+    }
+
 });
