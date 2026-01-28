@@ -1450,49 +1450,58 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeObj = fabricCanvas.getActiveObject();
         if (!activeObj) return;
 
-        // キャンバスコンテナの画面上での位置を取得
-        // (canvasContainer変数が定義されていない場合は document.getElementById('canvas-container') で取得)
+        // キャンバスの親要素（基準点）の画面上の位置を取得
         const container = document.getElementById('canvas-container');
         if (!container) return;
-
         const containerRect = container.getBoundingClientRect();
+
+        // オブジェクトのキャンバス内座標
         const bound = activeObj.getBoundingRect();
 
         const toolbarWidth = floatingToolbar.offsetWidth;
         const toolbarHeight = floatingToolbar.offsetHeight;
         const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
 
-        // 1. キャンバス内での基本位置を計算 (activeObjの中心上部)
+        // 1. 仮の座標を計算 (キャンバス内での相対位置: オブジェクトの中央上部)
         let top = bound.top - toolbarHeight - 10;
         let left = bound.left + (bound.width / 2) - (toolbarWidth / 2);
 
-        // 2. 画面左端へのはみ出し補正
-        // (コンテナの左端位置 + ツールバーの相対位置) < 10px なら補正
+        // --- 画面外へのはみ出し補正 ---
+
+        // A. 左端の補正
+        // 「コンテナの画面左端 + ツールバーの相対位置」が 10px 未満なら、10pxの位置に強制移動
+        // (canvas-containerの外側にある余白も使えるようにする)
         if (containerRect.left + left < 10) {
             left = 10 - containerRect.left;
         }
 
-        // 3. 画面右端へのはみ出し補正
-        // (コンテナの左端位置 + ツールバーの相対位置 + ツールバー幅) > (画面幅 - 20px) なら補正
-        if (containerRect.left + left + toolbarWidth > windowWidth - 20) {
-            left = (windowWidth - 20) - toolbarWidth - containerRect.left;
+        // B. 右端の補正
+        // 「コンテナの画面左端 + ツールバーの相対位置 + ツールバー幅」が 画面幅-10px を超えるなら補正
+        if (containerRect.left + left + toolbarWidth > windowWidth - 10) {
+            left = (windowWidth - 10) - toolbarWidth - containerRect.left;
         }
 
-        // 4. 画面上端へのはみ出し補正
-        // (コンテナの上端位置 + ツールバーの相対位置) < 10px ならオブジェクトの下に表示
+        // C. 上端の補正
+        // 「コンテナの画面上端 + ツールバーの相対位置」が ヘッダー下(約60pxと仮定)より上なら、オブジェクトの下に出す
+        // または画面上端(10px)を基準にする
         if (containerRect.top + top < 10) {
             top = bound.top + bound.height + 10;
         }
 
+        // 座標を適用
         floatingToolbar.style.top = `${top}px`;
         floatingToolbar.style.left = `${left}px`;
 
         // --- ポップアップの向き自動調整 ---
-        // ツールバーの画面上でのY座標が300px未満なら下に出す
+        // ツールバーの実画面位置(Y)が画面上部(300px以内)にある場合は、色選択ポップアップを下向きに出す
         const screenTop = containerRect.top + top;
         const shouldOpenDown = screenTop < 300;
 
-        [popupTextColor, popupBgColor, typeof popupBorderColor !== 'undefined' ? popupBorderColor : null].forEach(popup => {
+        const popups = [popupTextColor, popupBgColor];
+        if (typeof popupBorderColor !== 'undefined') popups.push(popupBorderColor);
+
+        popups.forEach(popup => {
             if (popup) {
                 if (shouldOpenDown) {
                     popup.classList.add('opens-down');
