@@ -1811,15 +1811,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnDeleteObj) {
+        // 1. フォーカス奪取を防ぐ
+        btnDeleteObj.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        // 2. 削除実行処理
         btnDeleteObj.addEventListener('click', () => {
             const activeObj = fabricCanvas.getActiveObject();
             if (activeObj) {
                 fabricCanvas.remove(activeObj);
                 fabricCanvas.discardActiveObject();
                 hideFloatingToolbar();
+                saveHistory();
             }
         });
     }
+
+    // 他のツールボタンにも同様の処置を適用
+    document.querySelectorAll('#floating-toolbar .btn-tool, #floating-toolbar .btn.is-text').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+            }
+        });
+    });
 
     // Sidebar Color Picker Sync removed
 
