@@ -1,15 +1,42 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Fabric.js Extension: Textbox Box Border & Height ---
+    // --- Fabric.js Extension: Textbox Box Border & Height & Vertical Align ---
     if (typeof fabric !== 'undefined') {
-        // テキストボックスの高さ計算をオーバーライドして、boxHeight（固定高さ）を優先する
+        // 1. テキストボックスの高さ計算をオーバーライド
         const originalCalcTextHeight = fabric.Textbox.prototype.calcTextHeight;
         fabric.Textbox.prototype.calcTextHeight = function () {
             const textHeight = originalCalcTextHeight.call(this);
+            // ★重要: 実際の文字の高さをプロパティとして保存（垂直揃え計算用）
+            this.__actualTextHeight = textHeight;
             // boxHeightが設定されていれば、その高さを最低値として使用する
             return Math.max(textHeight, this.boxHeight || 0);
         };
 
-        // 背景と枠線の描画処理
+        // 2. テキスト描画処理をオーバーライドして垂直位置をずらす
+        const originalRenderText = fabric.Textbox.prototype._renderText;
+        fabric.Textbox.prototype._renderText = function (ctx) {
+            // boxHeightがあり、かつ文字の高さより箱の方が大きい場合のみ調整
+            if (this.boxHeight > this.__actualTextHeight && this.verticalAlign) {
+                let yOffset = 0;
+                const emptySpace = this.boxHeight - this.__actualTextHeight;
+
+                if (this.verticalAlign === 'middle') {
+                    yOffset = emptySpace / 2;
+                } else if (this.verticalAlign === 'bottom') {
+                    yOffset = emptySpace;
+                }
+
+                // コンテキストをずらして描画
+                ctx.save();
+                ctx.translate(0, yOffset);
+                originalRenderText.call(this, ctx);
+                ctx.restore();
+            } else {
+                // 通常描画
+                originalRenderText.call(this, ctx);
+            }
+        };
+
+        // 3. 背景と枠線の描画処理
         fabric.Textbox.prototype._renderBackground = function (ctx) {
             if (this.backgroundColor) {
                 ctx.fillStyle = this.backgroundColor;
@@ -77,6 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAlignLeft = document.getElementById('btn-align-left');
     const btnAlignCenter = document.getElementById('btn-align-center');
     const btnAlignRight = document.getElementById('btn-align-right');
+    // ★追加
+    const btnValignTop = document.getElementById('btn-valign-top');
+    const btnValignMiddle = document.getElementById('btn-valign-middle');
+    const btnValignBottom = document.getElementById('btn-valign-bottom');
     const btnDeleteObj = document.getElementById('btn-delete-obj');
 
     const toolbarTextTools = document.getElementById('toolbar-text-tools');
@@ -1448,6 +1479,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnAlignCenter) btnAlignCenter.classList.toggle('active', obj.textAlign === 'center');
             if (btnAlignRight) btnAlignRight.classList.toggle('active', obj.textAlign === 'right');
 
+            // ★追加: 垂直揃えボタンの状態更新
+            const currentValign = obj.verticalAlign || 'top';
+            updateVerticalAlignUI(currentValign);
+            // 垂直揃えボタンの表示制御
+            if (btnValignTop && btnValignTop.parentElement) {
+                btnValignTop.parentElement.style.display = 'flex';
+            }
+
         } else {
             // Shape
             if (floatFontSize && floatFontSize.parentElement) floatFontSize.parentElement.style.display = 'none';
@@ -1455,6 +1494,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnItalic) btnItalic.style.display = 'none';
             if (btnUnderline) btnUnderline.style.display = 'none';
             if (btnAlignLeft && btnAlignLeft.parentElement) btnAlignLeft.parentElement.style.display = 'none';
+            // ★追加
+            if (btnValignTop && btnValignTop.parentElement) btnValignTop.parentElement.style.display = 'none';
 
             if (floatTextColor) {
                 const stroke = obj.stroke || '#000000';
@@ -1722,6 +1763,33 @@ document.addEventListener('DOMContentLoaded', () => {
             btnAlignCenter.classList.toggle('active', align === 'center');
             btnAlignRight.classList.toggle('active', align === 'right');
         }
+    }
+
+    // --- Vertical Alignment (垂直揃え) ---
+    if (btnValignTop) btnValignTop.addEventListener('click', () => setVerticalAlign('top'));
+    if (btnValignMiddle) btnValignMiddle.addEventListener('click', () => setVerticalAlign('middle'));
+    if (btnValignBottom) btnValignBottom.addEventListener('click', () => setVerticalAlign('bottom'));
+
+    function setVerticalAlign(align) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox')) {
+            // プロパティをセットし、キャッシュ更新フラグを立てる
+            activeObj.set({
+                'verticalAlign': align,
+                'dirty': true
+            });
+            fabricCanvas.requestRenderAll();
+            saveHistory();
+
+            // UI更新
+            updateVerticalAlignUI(align);
+        }
+    }
+
+    function updateVerticalAlignUI(align) {
+        if (btnValignTop) btnValignTop.classList.toggle('active', align === 'top' || !align); // デフォルトtop
+        if (btnValignMiddle) btnValignMiddle.classList.toggle('active', align === 'middle');
+        if (btnValignBottom) btnValignBottom.classList.toggle('active', align === 'bottom');
     }
 
     // Font Size
