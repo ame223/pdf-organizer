@@ -818,20 +818,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvasContainer = document.getElementById('canvas-container');
     const editorSidebar = document.getElementById('editor-sidebar');
 
-    // サイドバーの描画
+    // サイドバーの描画（修正版：editorPageMapを使用）
     async function renderEditorSidebar() {
         if (!editorSidebar) return;
-        editorSidebar.innerHTML = ''; // クリア
+        editorSidebar.innerHTML = '';
 
-        const pdfDoc = currentEditorPdfJsDoc;
-        if (!pdfDoc) return; // Add check
+        // ★ editorPageMap でループ (これが重要)
+        for (let i = 0; i < editorPageMap.length; i++) {
+            const pageInfo = editorPageMap[i];
 
-        for (let i = 0; i < pdfDoc.numPages; i++) {
-            // コンテナ作成
             const itemDiv = document.createElement('div');
             itemDiv.className = 'sidebar-page-item';
             itemDiv.dataset.pageIndex = i;
             if (i === currentEditorPageIndex) itemDiv.classList.add('active');
+            itemDiv.style.position = 'relative'; // 削除ボタン配置用
+            itemDiv.style.cursor = 'pointer';
+            itemDiv.style.textAlign = 'center';
 
             // ページ番号
             const numSpan = document.createElement('div');
@@ -840,31 +842,81 @@ document.addEventListener('DOMContentLoaded', () => {
             numSpan.style.marginBottom = '4px';
             itemDiv.appendChild(numSpan);
 
-            // サムネイル生成（軽量化のためscale小さめ）
-            const page = await pdfDoc.getPage(i + 1);
+            // サムネイル生成
+            const page = await pageInfo.pdfJsDoc.getPage(pageInfo.pageIndex + 1);
             const viewport = page.getViewport({ scale: 0.2 });
             const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
             canvas.height = viewport.height;
             canvas.width = viewport.width;
-
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
 
             const img = document.createElement('img');
             img.src = canvas.toDataURL();
+            img.style.maxWidth = '100%';
+            img.style.border = '1px solid #ddd';
             itemDiv.appendChild(img);
+
+            // ★削除ボタンの追加
+            const btnDelete = document.createElement('button');
+            btnDelete.innerHTML = '<i class="material-icons" style="font-size: 16px;">close</i>';
+            btnDelete.style.position = 'absolute';
+            btnDelete.style.top = '2px';
+            btnDelete.style.right = '2px';
+            btnDelete.style.background = 'rgba(255, 0, 0, 0.8)';
+            btnDelete.style.color = 'white';
+            btnDelete.style.border = 'none';
+            btnDelete.style.borderRadius = '50%';
+            btnDelete.style.width = '20px';
+            btnDelete.style.height = '20px';
+            btnDelete.style.cursor = 'pointer';
+            btnDelete.style.display = 'flex';
+            btnDelete.style.alignItems = 'center';
+            btnDelete.style.justifyContent = 'center';
+            btnDelete.title = 'このページを削除';
+
+            btnDelete.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('このページを削除しますか？')) {
+                    deleteEditorPage(i);
+                }
+            });
+            itemDiv.appendChild(btnDelete);
 
             // クリックイベント
             itemDiv.addEventListener('click', () => {
-                // 現在のページと同じなら何もしない
-                if (currentEditorPageIndex === i) return;
-
-                // ページ切り替え（既存関数を使用）
-                loadEditorPage(i);
+                if (currentEditorPageIndex !== i) loadEditorPage(i);
             });
 
             editorSidebar.appendChild(itemDiv);
         }
+    }
+
+    // ページ削除処理
+    function deleteEditorPage(index) {
+        editorPageMap.splice(index, 1);
+        editorPages.splice(index, 1); // 編集データも削除
+
+        if (editorPageMap.length === 0) {
+            alert("全てのページが削除されました。初期画面に戻ります。");
+            resetApp();
+            return;
+        }
+
+        if (currentEditorPageIndex >= editorPageMap.length) {
+            currentEditorPageIndex = editorPageMap.length - 1;
+        }
+
+        renderEditorSidebar();
+        loadEditorPage(currentEditorPageIndex);
+    }
+
+    function hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? PDFLib.rgb(
+            parseInt(result[1], 16) / 255,
+            parseInt(result[2], 16) / 255,
+            parseInt(result[3], 16) / 255
+        ) : undefined;
     }
 
     // ページ切り替え時にサイドバーの選択状態を更新
