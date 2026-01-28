@@ -2077,8 +2077,10 @@ document.addEventListener('DOMContentLoaded', () => {
             pdfDoc.registerFontkit(fontkit);
 
             // Fonts
-            const fontUrlReg = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.woff2';
-            const fontUrlBold = 'https://fonts.gstatic.com/s/notosansjp/v52/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75v.woff2';
+            // Fonts (安定したCDN経由のURLに変更)
+            // Noto Sans JP (Regular & Bold) via unpkg
+            const fontUrlReg = 'https://unpkg.com/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-400-normal.woff';
+            const fontUrlBold = 'https://unpkg.com/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-700-normal.woff';
 
             let fontRegular = null;
             let fontBold = null;
