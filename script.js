@@ -18,8 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const editorControls = document.getElementById('editor-controls');
     const btnAddText = document.getElementById('btn-add-text');
     const btnAddRect = document.getElementById('btn-add-rect');
-    const editorColor = document.getElementById('editor-color');
-    const btnDeleteObj = document.getElementById('btn-delete-obj');
     const btnPrevPage = document.getElementById('btn-prev-page');
     const btnNextPage = document.getElementById('btn-next-page');
     const pageIndicator = document.getElementById('page-indicator');
@@ -880,7 +878,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 hideFloatingToolbar();
             }
-            updateEditorControlsOriginal();
         } else {
             hideFloatingToolbar();
         }
@@ -1105,8 +1102,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 top: startY,
                 width: 0,
                 height: 0,
+                height: 0,
                 fill: 'transparent',
-                stroke: editorColor.value,
+                stroke: '#000000',
                 strokeWidth: 3
             });
             fabricCanvas.add(drawingObject);
@@ -1182,15 +1180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // --- UI Event Listeners ---
 
-    function updateEditorControlsOriginal() {
-        const activeObj = fabricCanvas.getActiveObject();
-        if (activeObj) {
-            editorColor.value = activeObj.fill || activeObj.stroke || '#000000';
-            btnDeleteObj.disabled = false;
-        } else {
-            btnDeleteObj.disabled = true;
-        }
-    }
+    // --- UI Event Listeners ---
 
     btnAddText.addEventListener('click', () => {
         currentEditorTool = 'text';
@@ -1375,29 +1365,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Sidebar Color Picker Sync (Optional, but good for consistency)
-    editorColor.addEventListener('input', (e) => {
-        const color = e.target.value;
-        const activeObj = fabricCanvas.getActiveObject();
-        if (activeObj) {
-            if (activeObj.type === 'rect') {
-                activeObj.set('stroke', color);
-            } else {
-                activeObj.set('fill', color);
-            }
-            fabricCanvas.requestRenderAll();
-        }
-    });
+    // Sidebar Color Picker Sync removed
 
-    btnDeleteObj.addEventListener('click', () => {
-        const activeObj = fabricCanvas.getActiveObject();
-        if (activeObj) {
-            fabricCanvas.remove(activeObj);
-            fabricCanvas.discardActiveObject();
-            updateEditorControlsOriginal();
-            hideFloatingToolbar();
-        }
-    });
+    // btnDeleteObj Listener removed
 
     async function loadEditorPage(index) {
         if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
