@@ -71,9 +71,49 @@
 
         <!-- Main Workspace (Hidden initially) -->
         <div id="workspace" class="hidden">
-            <div class="workspace-header">
-                <button id="btn-back" class="btn is-text"><i class="material-icons">arrow_back</i> 戻る</button>
-                <h2 id="workspace-title">...</h2>
+            <div class="workspace-header"
+                style="display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap;">
+
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <button id="btn-back" class="btn is-text"><i class="material-icons">arrow_back</i> 戻る</button>
+                    <h2 id="workspace-title" style="margin: 0; white-space: nowrap;">...</h2>
+                </div>
+
+                <div id="edit-header-controls" class="hidden"
+                    style="display: flex; align-items: center; gap: 10px; flex: 1;">
+
+                    <div id="edit-action-buttons" style="display: flex; gap: 10px;"></div>
+
+                    <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
+
+                    <button id="btn-add-text" class="btn is-outlined" title="テキスト追加"
+                        style="padding: 5px 10px; font-size: 0.8rem;">
+                        <i class="material-icons" style="font-size: 18px;">title</i> テキスト
+                    </button>
+                    <button id="btn-add-rect" class="btn is-outlined" title="四角形追加"
+                        style="padding: 5px 10px; font-size: 0.8rem;">
+                        <i class="material-icons" style="font-size: 18px;">crop_square</i> 四角
+                    </button>
+
+                    <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
+
+                    <button id="btn-undo" class="btn is-text" title="元に戻す" disabled><i
+                            class="material-icons">undo</i></button>
+                    <button id="btn-redo" class="btn is-text" title="やり直す" disabled><i
+                            class="material-icons">redo</i></button>
+
+                    <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
+
+                    <div
+                        style="display: flex; align-items: center; background: #f0f0f0; border-radius: 4px; padding: 2px;">
+                        <button id="btn-zoom-out" class="btn is-text" style="padding: 4px;"><i class="material-icons"
+                                style="font-size: 18px;">remove</i></button>
+                        <span id="zoom-level-text"
+                            style="font-size: 0.8rem; min-width: 40px; text-align: center;">100%</span>
+                        <button id="btn-zoom-in" class="btn is-text" style="padding: 4px;"><i class="material-icons"
+                                style="font-size: 18px;">add</i></button>
+                    </div>
+                </div>
             </div>
 
             <!-- Drag & Drop Zone -->
@@ -92,27 +132,9 @@
             <!-- Toolbar (Hidden initially) -->
             <section id="toolbar" class="toolbar hidden">
                 <div class="toolbar-actions">
-                    <!-- Buttons will be injected/shown based on mode -->
                     <div id="action-buttons"></div>
-
-                    <!-- Editor Specific Controls (Hidden unless in edit mode) -->
-                    <div id="editor-controls" class="hidden"
-                        style="display: flex; gap: 10px; align-items: center; border-left: 1px solid #ccc; padding-left: 15px; margin-left: 15px;">
-                        <button id="btn-add-text" class="btn is-outlined" title="テキスト追加"><i
-                                class="material-icons">title</i> テキスト</button>
-                        <button id="btn-add-rect" class="btn is-outlined" title="四角形追加"><i
-                                class="material-icons">crop_square</i> 四角</button>
-                        <div style="width: 1px; height: 24px; background: #ccc; margin: 0 10px;"></div>
-                        <button id="btn-undo" class="btn is-text" title="元に戻す" disabled><i
-                                class="material-icons">undo</i></button>
-                        <button id="btn-redo" class="btn is-text" title="やり直す" disabled><i
-                                class="material-icons">redo</i></button>
-                    </div>
-
                     <div class="spacer"></div>
-                    <button id="btn-clear" class="btn is-text">
-                        <i class="material-icons">delete_sweep</i> 全て削除
-                    </button>
+                    <button id="btn-clear" class="btn is-text"><i class="material-icons">delete_sweep</i> 全て削除</button>
                 </div>
             </section>
 

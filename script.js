@@ -15,12 +15,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Editor Elements ---
     const editorArea = document.getElementById('editor-area');
-    const editorControls = document.getElementById('editor-controls');
+    const editorControls = document.getElementById('editor-controls'); // May be null now, handled in logic
     const btnAddText = document.getElementById('btn-add-text');
     const btnAddRect = document.getElementById('btn-add-rect');
     const btnPrevPage = document.getElementById('btn-prev-page');
     const btnNextPage = document.getElementById('btn-next-page');
     const pageIndicator = document.getElementById('page-indicator');
+
+    // Header Controls (New)
+    const editHeaderControls = document.getElementById('edit-header-controls');
+    const editActionButtons = document.getElementById('edit-action-buttons');
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    const zoomLevelText = document.getElementById('zoom-level-text');
+    const canvasWrapper = document.getElementById('canvas-wrapper');
+
+    // Zoom State
+    let currentZoomScale = 1.0;
 
     // --- State ---
     let currentMode = null; // 'merge', 'split', 'reorder'
@@ -64,6 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
         dropZone.classList.remove('hidden');
         toolbar.classList.add('hidden');
 
+        currentZoomScale = 1.0;
+        if (typeof updateZoomDisplay === 'function') updateZoomDisplay();
+
+
         // Set Title and Instructions
         switch (mode) {
             case 'merge':
@@ -94,68 +109,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateActionButtons() {
-        actionButtonsContainer.innerHTML = ''; // Clear existing buttons
+        actionButtonsContainer.innerHTML = ''; // 下部ツールバーのクリア
+        editActionButtons.innerHTML = '';      // ヘッダー内ボタンのクリア
 
-        if (currentMode === 'merge') {
-            const btn = createButton('merge_type', '結合して保存', () => saveHandler());
-            btn.className = 'btn is-primary';
-            actionButtonsContainer.appendChild(btn);
+        // 共通: まず両方隠す
+        toolbar.classList.add('hidden');
+        editHeaderControls.classList.add('hidden');
 
-        } else if (currentMode === 'split') {
-            const btn = createButton('content_cut', '選択ページを抽出して保存', () => saveHandler());
-            btn.className = 'btn is-primary';
-            actionButtonsContainer.appendChild(btn);
-            addHint(' ※クリックして複数選択可');
+        if (currentMode === 'edit') {
+            // --- 編集モード: ヘッダーを使用 ---
+            editHeaderControls.classList.remove('hidden');
 
-        } else if (currentMode === 'reorder') {
-            const btn = createButton('save', '現在の順序で保存', () => saveHandler());
-            btn.className = 'btn is-primary';
-            actionButtonsContainer.appendChild(btn);
-            addHint(' ※ドラッグで順序変更、右下のボタンで回転');
-
-        } else if (currentMode === 'img2pdf') {
-            const btn = createButton('picture_as_pdf', 'PDFとして保存', () => saveHandler());
-            btn.className = 'btn is-primary';
-            actionButtonsContainer.appendChild(btn);
-
-        } else if (currentMode === 'pdf2img') {
-            const btnZip = createButton('photo_library', '画像をZIPで保存', () => saveHandler());
-            btnZip.className = 'btn is-primary';
-            actionButtonsContainer.appendChild(btnZip);
-
-            // Workaround for Windows Security ZIP issues
-            const btnSingle = createButton('collections', '1枚ずつ保存', () => saveHandler(true));
-            btnSingle.className = 'btn is-outlined';
-            btnSingle.style.marginLeft = '10px';
-            actionButtonsContainer.appendChild(btnSingle);
-
-            addHint(' ※ZIPが開けない場合は「1枚ずつ」をお試しください');
-
-        } else if (currentMode === 'security') {
-            const btn = createButton('lock', 'パスワードを設定して保存', () => {
-                // Open Password Modal instead of direct save
-                document.getElementById('password-modal').classList.remove('hidden');
-                document.getElementById('pdf-password').value = '';
-                document.getElementById('pdf-password').focus();
-            });
-            btn.className = 'btn is-primary';
-            actionButtonsContainer.appendChild(btn);
-        } else if (currentMode === 'edit') {
+            // PDFを追加ボタン
             const btnAdd = createButton('add_to_photos', 'PDFを追加', () => {
                 document.getElementById('file-input').click();
             });
             btnAdd.className = 'btn is-outlined';
-            btnAdd.style.marginRight = '10px';
-            actionButtonsContainer.appendChild(btnAdd);
+            btnAdd.style.padding = '5px 10px';
+            btnAdd.style.fontSize = '0.8rem';
+            editActionButtons.appendChild(btnAdd);
 
-            const btn = createButton('save', '編集結果を保存', () => saveHandler());
-            btn.className = 'btn is-primary';
-            actionButtonsContainer.appendChild(btn);
+            // 保存ボタン
+            const btnSave = createButton('save', '保存', () => saveHandler());
+            btnSave.className = 'btn is-primary';
+            btnSave.style.padding = '5px 15px';
+            btnSave.style.fontSize = '0.8rem';
+            editActionButtons.appendChild(btnSave);
 
-            // Show editor controls
-            editorControls.classList.remove('hidden');
         } else {
-            editorControls.classList.add('hidden');
+            // --- 他のモード: 下部ツールバーを使用 ---
+
+            // ページがなければツールバーは表示しない（ただし、ドラッグ＆ドロップ後は表示されるべき）
+            // handleFilesで表示されるので、ここではボタン生成に集中
+
+            if (loadedFiles.length > 0) {
+                toolbar.classList.remove('hidden');
+            }
+
+            if (currentMode === 'merge') {
+                const btn = createButton('merge_type', '結合して保存', () => saveHandler());
+                btn.className = 'btn is-primary';
+                actionButtonsContainer.appendChild(btn);
+
+            } else if (currentMode === 'split') {
+                const btn = createButton('content_cut', '選択ページを抽出して保存', () => saveHandler());
+                btn.className = 'btn is-primary';
+                actionButtonsContainer.appendChild(btn);
+                addHint(' ※クリックして複数選択可');
+
+            } else if (currentMode === 'reorder') {
+                const btn = createButton('save', '現在の順序で保存', () => saveHandler());
+                btn.className = 'btn is-primary';
+                actionButtonsContainer.appendChild(btn);
+                addHint(' ※ドラッグで順序変更、右下のボタンで回転');
+
+            } else if (currentMode === 'img2pdf') {
+                const btn = createButton('picture_as_pdf', 'PDFとして保存', () => saveHandler());
+                btn.className = 'btn is-primary';
+                actionButtonsContainer.appendChild(btn);
+
+            } else if (currentMode === 'pdf2img') {
+                const btnZip = createButton('photo_library', '画像をZIPで保存', () => saveHandler());
+                btnZip.className = 'btn is-primary';
+                actionButtonsContainer.appendChild(btnZip);
+
+                // Workaround for Windows Security ZIP issues
+                const btnSingle = createButton('collections', '1枚ずつ保存', () => saveHandler(true));
+                btnSingle.className = 'btn is-outlined';
+                btnSingle.style.marginLeft = '10px';
+                actionButtonsContainer.appendChild(btnSingle);
+
+                addHint(' ※ZIPが開けない場合は「1枚ずつ」をお試しください');
+
+            } else if (currentMode === 'security') {
+                const btn = createButton('lock', 'パスワードを設定して保存', () => {
+                    // Open Password Modal instead of direct save
+                    document.getElementById('password-modal').classList.remove('hidden');
+                    document.getElementById('pdf-password').value = '';
+                    document.getElementById('pdf-password').focus();
+                });
+                btn.className = 'btn is-primary';
+                actionButtonsContainer.appendChild(btn);
+            }
         }
     }
 
