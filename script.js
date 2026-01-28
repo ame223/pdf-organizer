@@ -13,18 +13,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnBack = document.getElementById('btn-back');
     const actionButtonsContainer = document.getElementById('action-buttons');
 
-    // --- Editor Elements ---
+    // --- Editor Elements (Active) ---
     const editorArea = document.getElementById('editor-area');
-    const editorControls = document.getElementById('editor-controls'); // May be null now, handled in logic
     const btnAddText = document.getElementById('btn-add-text');
-    const btnAddRect = document.getElementById('btn-add-rect');
-    const btnAddCircle = document.getElementById('btn-add-circle');
-    const btnAddTriangle = document.getElementById('btn-add-triangle');
+    // btnAddRect は削除済みのため取得しない
+
+    // Pagination
     const btnPrevPage = document.getElementById('btn-prev-page');
     const btnNextPage = document.getElementById('btn-next-page');
     const pageIndicator = document.getElementById('page-indicator');
 
-    // Header Controls (New)
+    // Header Controls
     const editHeaderControls = document.getElementById('edit-header-controls');
     const editActionButtons = document.getElementById('edit-action-buttons');
     const btnZoomIn = document.getElementById('btn-zoom-in');
@@ -32,23 +31,73 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoomLevelText = document.getElementById('zoom-level-text');
     const canvasWrapper = document.getElementById('canvas-wrapper');
 
-    // Zoom State
-    let currentZoomScale = 1.0;
+    // Floating Toolbar Elements
+    const floatingToolbar = document.getElementById('floating-toolbar');
+    const floatFontSize = document.getElementById('float-font-size');
+    const floatStrokeWidth = document.getElementById('float-stroke-width');
+
+    // Toolbar Tools
+    const btnBold = document.getElementById('btn-bold');
+    const btnItalic = document.getElementById('btn-italic');
+    const btnUnderline = document.getElementById('btn-underline');
+    const btnAlignLeft = document.getElementById('btn-align-left');
+    const btnAlignCenter = document.getElementById('btn-align-center');
+    const btnAlignRight = document.getElementById('btn-align-right');
+    const btnDeleteObj = document.getElementById('btn-delete-obj');
+
+    const toolbarTextTools = document.getElementById('toolbar-text-tools');
+    const toolbarShapeTools = document.getElementById('toolbar-shape-tools');
+
+    // Color Popups
+    const btnTextColorTrigger = document.getElementById('btn-text-color-trigger');
+    const popupTextColor = document.getElementById('popup-text-color');
+    const floatTextColor = document.getElementById('float-text-color');
+    const indicatorTextColor = document.getElementById('indicator-text-color');
+
+    const btnBgColorTrigger = document.getElementById('btn-bg-color-trigger');
+    const popupBgColor = document.getElementById('popup-bg-color');
+    const floatBgColor = document.getElementById('float-bg-color');
+    const bgOpacity = document.getElementById('bg-opacity');
+    const indicatorBgColor = document.getElementById('indicator-bg-color');
+
+    // Shape Menu Elements
+    const btnAddShapeTrigger = document.getElementById('btn-add-shape-trigger');
+    const popupAddShape = document.getElementById('popup-add-shape');
+    const btnShapeRect = document.getElementById('btn-shape-rect');
+    const btnShapeCircle = document.getElementById('btn-shape-circle');
+    const btnShapeTriangle = document.getElementById('btn-shape-triangle');
+
+    // Undo/Redo
+    const btnUndo = document.getElementById('btn-undo');
+    const btnRedo = document.getElementById('btn-redo');
+
 
     // --- State ---
-    let currentMode = null; // 'merge', 'split', 'reorder'
-    let loadedFiles = []; // Stores { name: string, data: ArrayBuffer, pdfDoc: PDFDocument, pdfJsDoc: PDFDocumentProxy }
-    let allPages = []; // Stores { fileId: number, pageIndex: number, thumbnail: string (dataURL), fileName: string, selected: boolean }
+    let currentMode = null;
+    let loadedFiles = [];
+    let allPages = [];
+    let currentZoomScale = 1.0;
 
     // --- Editor State ---
     let fabricCanvas = null;
-    let editorPages = []; // Stores Fabric JSON state per page: { pageIndex: number, fabricJSON: object }
+    let editorPages = [];
     let currentEditorPageIndex = 0;
     let currentEditorPdfJsDoc = null;
-    let currentEditorFile = null; // The file object being edited
-    // 編集モード用のページ管理マップ（どのファイルの何ページ目か）
-    // 構造: { fileIndex: number, pageIndex: number, pdfJsDoc: object }
+    let currentEditorFile = null;
     let editorPageMap = [];
+
+    // Drawing State (Moved to top)
+    let currentEditorTool = 'select'; // 'select', 'text', 'rect', 'circle', 'triangle'
+    let isDrawing = false;
+    let startX = 0;
+    let startY = 0;
+    let drawingObject = null;
+
+    // Undo/Redo State
+    let historyStack = [];
+    let historyIndex = -1;
+    let isHistoryLocked = false;
+
 
     // --- Mode Selection Logic ---
     document.querySelectorAll('.mode-card').forEach(card => {
@@ -789,51 +838,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Editor Logic (Integrated) ---
 
-    // State for creating objects
-    let currentEditorTool = 'select'; // 'select', 'text', 'rect'
-    let isDrawing = false;
-    let startX = 0;
-    let startY = 0;
-    let drawingObject = null; // Temporary object being drawn
-
-    // Floating Toolbar Elements
-    const floatingToolbar = document.getElementById('floating-toolbar');
-    const floatFontSize = document.getElementById('float-font-size');
-    const floatStrokeWidth = document.getElementById('float-stroke-width');
-    const floatBtnDelete = document.getElementById('float-btn-delete');
-
-    // New Toolbar Elements
-    const btnBold = document.getElementById('btn-bold');
-    const btnItalic = document.getElementById('btn-italic');
-    const btnUnderline = document.getElementById('btn-underline');
-    const btnAlignLeft = document.getElementById('btn-align-left');
-    const btnAlignCenter = document.getElementById('btn-align-center');
-    const btnAlignRight = document.getElementById('btn-align-right');
-    const btnDeleteObj = document.getElementById('btn-delete-obj');
-
-    // Groups
-    const toolbarTextTools = document.getElementById('toolbar-text-tools');
-    const toolbarShapeTools = document.getElementById('toolbar-shape-tools');
-
-    // Color Popups
-    const btnTextColorTrigger = document.getElementById('btn-text-color-trigger');
-    const popupTextColor = document.getElementById('popup-text-color');
-    const floatTextColor = document.getElementById('float-text-color');
-    const indicatorTextColor = document.getElementById('indicator-text-color');
-
-    const btnBgColorTrigger = document.getElementById('btn-bg-color-trigger');
-    const popupBgColor = document.getElementById('popup-bg-color');
-    const floatBgColor = document.getElementById('float-bg-color');
-    const bgOpacity = document.getElementById('bg-opacity');
-    const indicatorBgColor = document.getElementById('indicator-bg-color');
-
     // --- Undo/Redo Logic ---
-    const btnUndo = document.getElementById('btn-undo');
-    const btnRedo = document.getElementById('btn-redo');
+    // (Variables moved to top)
 
-    let historyStack = [];
-    let historyIndex = -1;
-    let isHistoryLocked = false;
 
     function saveHistory() {
         if (isHistoryLocked) return;
@@ -1019,66 +1026,115 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 2. Canvas Initialization & Event Handlers
     function initializeEditor() {
         if (!fabricCanvas) {
             fabricCanvas = new fabric.Canvas('fabric-canvas');
 
-            // Selection Events for Toolbar
             fabricCanvas.on('selection:created', onSelectionChanged);
             fabricCanvas.on('selection:updated', onSelectionChanged);
             fabricCanvas.on('selection:cleared', onSelectionCleared);
 
-            // Object Modification Events
-            fabricCanvas.on('object:modified', onObjectModified);
-            fabricCanvas.on('object:modified', saveHistory); // Added for Undo/Redo
-            fabricCanvas.on('object:added', saveHistory);    // Added for Undo/Redo
-            fabricCanvas.on('object:removed', saveHistory);  // Added for Undo/Redo
+            fabricCanvas.on('object:modified', saveHistory);
+            fabricCanvas.on('object:added', saveHistory);
+            fabricCanvas.on('object:removed', saveHistory);
 
             fabricCanvas.on('object:moving', updateToolbarPosition);
             fabricCanvas.on('object:scaling', updateToolbarPosition);
             fabricCanvas.on('object:resizing', updateToolbarPosition);
 
-            // オブジェクトがキャンバス外に出ないように制限
+            // Bounds restriction
             fabricCanvas.on('object:moving', (e) => {
                 const obj = e.target;
                 const canvas = obj.canvas;
-
-                // キャンバスのサイズ
-                const width = canvas.width;
-                const height = canvas.height;
-
-                // オブジェクトの現在のサイズ（拡大縮小を含む）
                 const objWidth = obj.getScaledWidth();
                 const objHeight = obj.getScaledHeight();
 
-                // --- 補正処理 ---
-
-                // 左にはみ出さない
-                if (obj.left < 0) {
-                    obj.left = 0;
-                }
-                // 上にはみ出さない
-                if (obj.top < 0) {
-                    obj.top = 0;
-                }
-                // 右にはみ出さない（右端 - オブジェクト幅）
-                if (obj.left + objWidth > width) {
-                    obj.left = width - objWidth;
-                }
-                // 下にはみ出さない（下端 - オブジェクト高さ）
-                if (obj.top + objHeight > height) {
-                    obj.top = height - objHeight;
-                }
+                if (obj.left < 0) obj.left = 0;
+                if (obj.top < 0) obj.top = 0;
+                if (obj.left + objWidth > canvas.width) obj.left = canvas.width - objWidth;
+                if (obj.top + objHeight > canvas.height) obj.top = canvas.height - objHeight;
             });
 
-            // Mouse Events for Creation
             fabricCanvas.on('mouse:down', onMouseDown);
             fabricCanvas.on('mouse:move', onMouseMove);
             fabricCanvas.on('mouse:up', onMouseUp);
 
-            // サイドバー描画
             renderEditorSidebar();
         }
+    }
+
+    // Mouse Interaction for Drawing
+    function onMouseDown(o) {
+        if (currentEditorTool === 'select') return;
+        isDrawing = true;
+        const pointer = fabricCanvas.getPointer(o.e);
+        startX = pointer.x;
+        startY = pointer.y;
+
+        const commonProps = { left: startX, top: startY, fill: 'transparent', stroke: '#000000', strokeWidth: 3, strokeUniform: true };
+
+        if (currentEditorTool === 'text') {
+            drawingObject = new fabric.Rect({
+                left: startX, top: startY, width: 0, height: 0,
+                fill: 'rgba(0, 150, 136, 0.2)', stroke: '#009688', strokeWidth: 1, strokeDashArray: [5, 5]
+            });
+        } else if (currentEditorTool === 'rect') {
+            drawingObject = new fabric.Rect({ ...commonProps, width: 0, height: 0 });
+        } else if (currentEditorTool === 'circle') {
+            drawingObject = new fabric.Ellipse({ ...commonProps, rx: 0, ry: 0 });
+        } else if (currentEditorTool === 'triangle') {
+            drawingObject = new fabric.Triangle({ ...commonProps, width: 0, height: 0 });
+        }
+
+        if (drawingObject) fabricCanvas.add(drawingObject);
+    }
+
+    function onMouseMove(o) {
+        if (!isDrawing || !drawingObject) return;
+        const pointer = fabricCanvas.getPointer(o.e);
+        const w = Math.abs(pointer.x - startX);
+        const h = Math.abs(pointer.y - startY);
+        const l = pointer.x < startX ? pointer.x : startX;
+        const t = pointer.y < startY ? pointer.y : startY;
+
+        if (currentEditorTool === 'text') {
+            drawingObject.set({ width: Math.max(w, 20), height: Math.max(h, 20) });
+        } else if (currentEditorTool === 'rect' || currentEditorTool === 'triangle') {
+            drawingObject.set({ left: l, top: t, width: w, height: h });
+        } else if (currentEditorTool === 'circle') {
+            drawingObject.set({ left: l, top: t, rx: w / 2, ry: h / 2 });
+        }
+        fabricCanvas.renderAll();
+    }
+
+    function onMouseUp(o) {
+        if (!isDrawing) return;
+        isDrawing = false;
+        if (drawingObject) drawingObject.setCoords();
+
+        if (currentEditorTool === 'text' && drawingObject) {
+            fabricCanvas.remove(drawingObject);
+            const text = new fabric.Textbox('ここに入力', {
+                left: drawingObject.left, top: drawingObject.top,
+                width: drawingObject.width > 20 ? drawingObject.width : 150,
+                fontFamily: 'Noto Sans JP', fontSize: 24, fill: '#000000', backgroundColor: 'transparent'
+            });
+            fabricCanvas.add(text);
+            fabricCanvas.setActiveObject(text);
+        } else if (['rect', 'circle', 'triangle'].includes(currentEditorTool)) {
+            if (drawingObject.width < 5 || drawingObject.height < 5) {
+                fabricCanvas.remove(drawingObject);
+            } else {
+                fabricCanvas.setActiveObject(drawingObject);
+            }
+        }
+
+        saveHistory();
+        currentEditorTool = 'select';
+        fabricCanvas.defaultCursor = 'default';
+        drawingObject = null;
+        resetToolButtons();
     }
 
     // --- Zoom & Pagination Logic ---
@@ -1374,185 +1430,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Creation Logic ---
-    function onMouseDown(o) {
-        if (currentEditorTool === 'select') return;
-
-        isDrawing = true;
-        const pointer = fabricCanvas.getPointer(o.e);
-        startX = pointer.x;
-        startY = pointer.y;
-
-        if (currentEditorTool === 'text') {
-            drawingObject = new fabric.Rect({
-                left: startX,
-                top: startY,
-                width: 0,
-                height: 0,
-                fill: 'rgba(0, 150, 136, 0.2)',
-                stroke: '#009688',
-                strokeWidth: 1,
-                strokeDashArray: [5, 5]
-            });
-            fabricCanvas.add(drawingObject);
-        } else if (currentEditorTool === 'rect') {
-            drawingObject = new fabric.Rect({
-                left: startX,
-                top: startY,
-                width: 0,
-                height: 0,
-                fill: 'transparent',
-                stroke: '#000000',
-                strokeWidth: 3,
-                strokeUniform: true
-            });
-            fabricCanvas.add(drawingObject);
-        } else if (currentEditorTool === 'circle') {
-            drawingObject = new fabric.Ellipse({
-                left: startX,
-                top: startY,
-                rx: 0,
-                ry: 0,
-                fill: 'transparent',
-                stroke: '#000000',
-                strokeWidth: 3,
-                strokeUniform: true
-            });
-            fabricCanvas.add(drawingObject);
-        } else if (currentEditorTool === 'triangle') {
-            drawingObject = new fabric.Triangle({
-                left: startX,
-                top: startY,
-                width: 0,
-                height: 0,
-                fill: 'transparent',
-                stroke: '#000000',
-                strokeWidth: 3,
-                strokeUniform: true
-            });
-            fabricCanvas.add(drawingObject);
-        }
-    }
-
-    function onMouseMove(o) {
-        if (isDrawing && drawingObject) {
-            const pointer = fabricCanvas.getPointer(o.e);
-
-            if (currentEditorTool === 'text') {
-                const width = Math.abs(pointer.x - startX);
-                const height = Math.abs(pointer.y - startY);
-                drawingObject.set({ width: Math.max(width, 20), height: Math.max(height, 20) }); // Min size
-            } else if (currentEditorTool === 'rect') {
-                const width = Math.abs(pointer.x - startX);
-                const height = Math.abs(pointer.y - startY);
-
-                // 負の方向への描画対応
-                const left = pointer.x < startX ? pointer.x : startX;
-                const top = pointer.y < startY ? pointer.y : startY;
-
-                drawingObject.set({ left: left, top: top, width: width, height: height });
-            } else if (currentEditorTool === 'circle') {
-                const width = Math.abs(pointer.x - startX);
-                const height = Math.abs(pointer.y - startY);
-                const left = pointer.x < startX ? pointer.x : startX;
-                const top = pointer.y < startY ? pointer.y : startY;
-
-                drawingObject.set({ left: left, top: top, rx: width / 2, ry: height / 2 });
-            } else if (currentEditorTool === 'triangle') {
-                const width = Math.abs(pointer.x - startX);
-                const height = Math.abs(pointer.y - startY);
-                const left = pointer.x < startX ? pointer.x : startX;
-                const top = pointer.y < startY ? pointer.y : startY;
-
-                drawingObject.set({ left: left, top: top, width: width, height: height });
-            }
-
-            fabricCanvas.renderAll();
-        }
-    }
-
-    function onMouseUp(o) {
-        // Finish Drawing
-        if (currentEditorTool !== 'select' && currentEditorTool !== 'text' && currentEditorTool !== 'rect' && currentEditorTool !== 'circle' && currentEditorTool !== 'triangle') return;
-
-        if (isDrawing) {
-            isDrawing = false;
-
-            // finalize object
-            if (drawingObject) {
-                drawingObject.setCoords();
-            }
-
-            // テキストの場合は入力状態にする
-            if (currentEditorTool === 'text' && drawingObject) {
-                fabricCanvas.remove(drawingObject); // Remove temporary rect
-
-                const width = drawingObject.width;
-                const height = drawingObject.height;
-                const finalWidth = width > 20 ? width : 150;
-
-                const text = new fabric.Textbox('ここに入力', {
-                    left: drawingObject.left,
-                    top: drawingObject.top,
-                    width: finalWidth,
-                    fontFamily: 'Noto Sans JP',
-                    fill: '#000000', // Default black
-                    fontSize: 24,
-                    splitByGrapheme: true,
-                    backgroundColor: 'transparent'
-                });
-
-                text.setControlsVisibility({
-                    mt: false, mb: false, ml: true, mr: true,
-                    bl: false, br: false, tl: false, tr: false,
-                    mtr: true
-                });
-
-                fabricCanvas.add(text);
-                fabricCanvas.setActiveObject(text);
-                fabricCanvas.renderAll();
-                saveHistory(); // Save history after adding text
-            } else if (['rect', 'circle', 'triangle'].includes(currentEditorTool)) {
-                // Reset tool to select after drawing shape
-                currentEditorTool = 'select';
-                fabricCanvas.defaultCursor = 'default';
-
-                if (drawingObject) {
-                    // Check for minimum size for shapes
-                    if (drawingObject.width < 5 || drawingObject.height < 5) {
-                        fabricCanvas.remove(drawingObject);
-                    } else {
-                        fabricCanvas.setActiveObject(drawingObject);
-                        saveHistory();
-                    }
-                }
-            }
-
-            drawingObject = null;
-        }
-
-        // Reset tool and button states
-        currentEditorTool = 'select';
-        fabricCanvas.defaultCursor = 'default';
-
-        resetToolButtons();
-    }
 
     // --- 新しい図形メニューの制御 ---
-    const btnAddShapeTrigger = document.getElementById('btn-add-shape-trigger');
-    const popupAddShape = document.getElementById('popup-add-shape');
-    const btnShapeRect = document.getElementById('btn-shape-rect');
-    const btnShapeCircle = document.getElementById('btn-shape-circle');
-    const btnShapeTriangle = document.getElementById('btn-shape-triangle');
-
-    // テキスト追加ボタンのイベント再設定
-    // 画面外クリックで閉じる
+    // Shape Menu
     document.addEventListener('click', (e) => {
         if (popupAddShape && !e.target.closest('#btn-add-shape-trigger')) {
             popupAddShape.classList.add('hidden');
         }
     });
 
-    // ツール選択ヘルパー
+    if (btnAddShapeTrigger) {
+        btnAddShapeTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            popupAddShape.classList.toggle('hidden');
+        });
+    }
+
     function selectShapeTool(toolType) {
         currentEditorTool = toolType;
         if (fabricCanvas) {
@@ -1560,35 +1453,21 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.discardActiveObject();
             fabricCanvas.renderAll();
         }
-        if (popupAddShape) popupAddShape.classList.add('hidden');
-
-        // 親ボタンの見た目を更新（選択中状態に）
+        popupAddShape.classList.add('hidden');
         resetToolButtons();
-        if (btnAddShapeTrigger) {
-            btnAddShapeTrigger.classList.remove('is-outlined');
-            btnAddShapeTrigger.classList.add('is-primary');
-        }
+        btnAddShapeTrigger.classList.remove('is-outlined');
+        btnAddShapeTrigger.classList.add('is-primary');
     }
 
-    function resetToolButtons() {
-        // テキストボタンのリセット
-        const txtBtn = document.getElementById('btn-add-text');
-        if (txtBtn) {
-            txtBtn.classList.remove('is-primary');
-            txtBtn.classList.add('is-outlined');
-        }
-        // 図形ボタンのリセット
-        const shapeBtn = document.getElementById('btn-add-shape-trigger');
-        if (shapeBtn) {
-            shapeBtn.classList.remove('is-primary');
-            shapeBtn.classList.add('is-outlined');
-        }
-    }
-
-    // 各図形メニューのイベント
     if (btnShapeRect) btnShapeRect.addEventListener('click', () => selectShapeTool('rect'));
     if (btnShapeCircle) btnShapeCircle.addEventListener('click', () => selectShapeTool('circle'));
     if (btnShapeTriangle) btnShapeTriangle.addEventListener('click', () => selectShapeTool('triangle'));
+
+    function resetToolButtons() {
+        const txtBtn = document.getElementById('btn-add-text');
+        if (txtBtn) { txtBtn.classList.remove('is-primary'); txtBtn.classList.add('is-outlined'); }
+        if (btnAddShapeTrigger) { btnAddShapeTrigger.classList.remove('is-primary'); btnAddShapeTrigger.classList.add('is-outlined'); }
+    }
 
     // --- UI Event Listeners ---
 
