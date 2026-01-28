@@ -639,3 +639,17 @@ input[type="color"]::-webkit-color-swatch {
     bottom: 100%;
     border-color: transparent transparent #ccc transparent;
 }
+
+/* --- 編集ヘッダーコントロールのデザイン復元 --- */
+#edit-header-controls {
+    background-color: #ffffff; /* 白い背景 */
+    padding: 8px 16px;         /* 内側の余白 */
+    border-radius: 8px;        /* 角丸 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 浮き上がるような影 */
+    
+    /* 既存のインラインスタイルの補完 */
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto; /* 右寄せにする場合 */
+}
