@@ -2113,15 +2113,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
             pdfDoc.registerFontkit(fontkit);
 
-            // ★変更: リンク切れを修正し、公式の軽量版(SubsetOTF/約4MB)を使用
-            // 参照: https://github.com/notofonts/noto-cjk/tree/main/Sans/SubsetOTF/JP
+            // ★変更: メモリキャッシュ機能付きのフォント読み込み
+            // 2回目以降はダウンロードせず、メモリ内のデータを使うため高速化します
             const fontUrlReg = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Regular.otf';
             const fontUrlBold = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Bold.otf';
 
             let fontRegular = null;
             let fontBold = null;
 
-            // タイムアウト付きフェッチ関数（15秒）
+            // グローバルキャッシュの初期化（未定義の場合）
+            if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null;
+            if (!window.cachedFontBytesBold) window.cachedFontBytesBold = null;
+
+            // タイムアウト付きフェッチ関数
             const fetchWithTimeout = (url, ms) => {
                 const controller = new AbortController();
                 const id = setTimeout(() => controller.abort(), ms);
@@ -2134,30 +2138,48 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                console.log("Downloading fonts (JP Subset OTF)...");
+                let bytesReg = window.cachedFontBytesReg;
+                let bytesBold = window.cachedFontBytesBold;
 
-                // 並列ダウンロード
-                const [bytesReg, bytesBold] = await Promise.all([
-                    fetchWithTimeout(fontUrlReg, 15000),
-                    fetchWithTimeout(fontUrlBold, 15000).catch(e => {
-                        console.warn("Bold font fetch failed, using Regular for all.", e);
-                        return null;
-                    })
-                ]);
+                // キャッシュがない場合のみダウンロード
+                if (!bytesReg || !bytesBold) {
+                    console.log("Downloading fonts (JP Subset OTF)...");
+                    const promises = [];
+
+                    if (!bytesReg) promises.push(fetchWithTimeout(fontUrlReg, 15000));
+                    else promises.push(Promise.resolve(bytesReg));
+
+                    if (!bytesBold) promises.push(fetchWithTimeout(fontUrlBold, 15000).catch(() => null));
+                    else promises.push(Promise.resolve(bytesBold));
+
+                    const [downloadedReg, downloadedBold] = await Promise.all(promises);
+
+                    // ダウンロード成功したらキャッシュに保存
+                    if (downloadedReg) {
+                        window.cachedFontBytesReg = downloadedReg;
+                        bytesReg = downloadedReg;
+                    }
+                    if (downloadedBold) {
+                        window.cachedFontBytesBold = downloadedBold;
+                        bytesBold = downloadedBold;
+                    }
+                } else {
+                    console.log("Using cached fonts.");
+                }
 
                 if (bytesReg) {
                     fontRegular = await pdfDoc.embedFont(bytesReg);
-                    // 太字が失敗した場合はRegularで代用
                     fontBold = bytesBold ? await pdfDoc.embedFont(bytesBold) : fontRegular;
                 } else {
                     throw new Error("Regular font download failed.");
                 }
 
             } catch (e) {
-                console.error("Font download failed:", e);
-                alert("日本語フォントのダウンロードに失敗しました（" + e.message + "）。\n通信環境を確認するか、時間を置いて試してください。\n※このまま保存すると日本語が表示されません。");
-                // フォントがない場合、ここで処理を中断するか、標準フォントで続行（文字化け覚悟）となります
-                // 今回はエラー回避のため、StandardFontsのHelveticaを使用しますが、日本語は消えます
+                console.error("Font load error:", e);
+                alert("日本語フォントの準備に失敗しました。通信環境を確認してください。");
+                // フォントがないと文字化けしますが、処理自体は続行させたい場合はここでreturnせず、
+                // 以下の処理でフォント指定を undefined にするなどの分岐が必要です。
+                return; // 今回は安全のため中断
             }
 
             // --- 4. ページ描画ループ ---
