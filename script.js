@@ -1450,21 +1450,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeObj = fabricCanvas.getActiveObject();
         if (!activeObj) return;
 
+        // キャンバスコンテナの画面上での位置を取得
+        // (canvasContainer変数が定義されていない場合は document.getElementById('canvas-container') で取得)
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+
+        const containerRect = container.getBoundingClientRect();
         const bound = activeObj.getBoundingRect();
+
         const toolbarWidth = floatingToolbar.offsetWidth;
         const toolbarHeight = floatingToolbar.offsetHeight;
         const windowWidth = window.innerWidth;
 
-        // 基本位置
+        // 1. キャンバス内での基本位置を計算 (activeObjの中心上部)
         let top = bound.top - toolbarHeight - 10;
         let left = bound.left + (bound.width / 2) - (toolbarWidth / 2);
 
-        // 画面端の補正
-        if (left < 10) left = 10;
-        if (left + toolbarWidth > windowWidth) left = windowWidth - toolbarWidth - 20;
+        // 2. 画面左端へのはみ出し補正
+        // (コンテナの左端位置 + ツールバーの相対位置) < 10px なら補正
+        if (containerRect.left + left < 10) {
+            left = 10 - containerRect.left;
+        }
 
-        // 上端チェック（画面上にはみ出す場合、オブジェクトの下に表示）
-        if (top < 10) {
+        // 3. 画面右端へのはみ出し補正
+        // (コンテナの左端位置 + ツールバーの相対位置 + ツールバー幅) > (画面幅 - 20px) なら補正
+        if (containerRect.left + left + toolbarWidth > windowWidth - 20) {
+            left = (windowWidth - 20) - toolbarWidth - containerRect.left;
+        }
+
+        // 4. 画面上端へのはみ出し補正
+        // (コンテナの上端位置 + ツールバーの相対位置) < 10px ならオブジェクトの下に表示
+        if (containerRect.top + top < 10) {
             top = bound.top + bound.height + 10;
         }
 
@@ -1472,10 +1488,11 @@ document.addEventListener('DOMContentLoaded', () => {
         floatingToolbar.style.left = `${left}px`;
 
         // --- ポップアップの向き自動調整 ---
-        // ツールバーが画面の上の方(300px以内)にある場合、ポップアップを下に出す
-        const shouldOpenDown = top < 300;
+        // ツールバーの画面上でのY座標が300px未満なら下に出す
+        const screenTop = containerRect.top + top;
+        const shouldOpenDown = screenTop < 300;
 
-        [popupTextColor, popupBgColor].forEach(popup => {
+        [popupTextColor, popupBgColor, typeof popupBorderColor !== 'undefined' ? popupBorderColor : null].forEach(popup => {
             if (popup) {
                 if (shouldOpenDown) {
                     popup.classList.add('opens-down');
