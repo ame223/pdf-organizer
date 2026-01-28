@@ -854,6 +854,9 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.on('mouse:down', onMouseDown);
             fabricCanvas.on('mouse:move', onMouseMove);
             fabricCanvas.on('mouse:up', onMouseUp);
+
+            // サイドバー描画
+            renderEditorSidebar();
         }
     }
 
