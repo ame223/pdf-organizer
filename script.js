@@ -1,4 +1,38 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Fabric.js Extension: Textbox Box Border & Height ---
+    if (typeof fabric !== 'undefined') {
+        // テキストボックスの高さ計算をオーバーライドして、boxHeight（固定高さ）を優先する
+        const originalCalcTextHeight = fabric.Textbox.prototype.calcTextHeight;
+        fabric.Textbox.prototype.calcTextHeight = function () {
+            const textHeight = originalCalcTextHeight.call(this);
+            // boxHeightが設定されていれば、その高さを最低値として使用する
+            return Math.max(textHeight, this.boxHeight || 0);
+        };
+
+        // 背景と枠線の描画処理
+        fabric.Textbox.prototype._renderBackground = function (ctx) {
+            if (this.backgroundColor) {
+                ctx.fillStyle = this.backgroundColor;
+                ctx.fillRect(
+                    -this.width / 2,
+                    -this.height / 2,
+                    this.width,
+                    this.height
+                );
+            }
+            // ボックスの枠線描画
+            if (this.boxBorderWidth > 0 && this.boxBorderColor) {
+                ctx.strokeStyle = this.boxBorderColor;
+                ctx.lineWidth = this.boxBorderWidth;
+                ctx.strokeRect(
+                    -this.width / 2,
+                    -this.height / 2,
+                    this.width,
+                    this.height
+                );
+            }
+        };
+    }
     // --- Elements ---
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
