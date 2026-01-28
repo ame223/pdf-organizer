@@ -926,7 +926,21 @@ document.addEventListener('DOMContentLoaded', () => {
         items.forEach(item => {
             if (parseInt(item.dataset.pageIndex) === index) {
                 item.classList.add('active');
-                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // scrollIntoView は画面全体を動かす可能性があるため、
+                // offsetTop を使ってサイドバー内部のスクロール位置だけを計算して動かす
+                const sidebarHeight = editorSidebar.clientHeight;
+                const itemTop = item.offsetTop;
+                const itemHeight = item.clientHeight;
+
+                // 選択したアイテムがサイドバーの中央に来るように計算
+                const targetScrollTop = itemTop - (sidebarHeight / 2) + (itemHeight / 2);
+
+                editorSidebar.scrollTo({
+                    top: targetScrollTop,
+                    behavior: 'smooth'
+                });
+
             } else {
                 item.classList.remove('active');
             }
