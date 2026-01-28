@@ -2113,40 +2113,51 @@ document.addEventListener('DOMContentLoaded', () => {
             const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
             pdfDoc.registerFontkit(fontkit);
 
-            // ★変更: 軽量化のため、CJK(全アジア版/16MB)ではなく、JP(日本専用版/約4MB)のTTFを使用
-            // Google Fontsの公式リポジトリから安定したTTFファイルを読み込む
-            const fontUrlReg = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansJP/NotoSansJP-Regular.ttf';
-            const fontUrlBold = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansJP/NotoSansJP-Bold.ttf';
+            // ★変更: リンク切れを修正し、公式の軽量版(SubsetOTF/約4MB)を使用
+            // 参照: https://github.com/notofonts/noto-cjk/tree/main/Sans/SubsetOTF/JP
+            const fontUrlReg = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Regular.otf';
+            const fontUrlBold = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Bold.otf';
 
             let fontRegular = null;
             let fontBold = null;
 
-            // タイムアウト付きフェッチ関数（サイズが小さくなったのでタイムアウトは10秒に設定）
+            // タイムアウト付きフェッチ関数（15秒）
             const fetchWithTimeout = (url, ms) => {
                 const controller = new AbortController();
                 const id = setTimeout(() => controller.abort(), ms);
                 return fetch(url, { signal: controller.signal })
                     .then(res => {
                         clearTimeout(id);
-                        if (!res.ok) throw new Error(res.statusText);
+                        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                         return res.arrayBuffer();
                     });
             };
 
             try {
-                console.log("Downloading fonts (JP TTF)...");
-                // 並列ダウンロード開始
+                console.log("Downloading fonts (JP Subset OTF)...");
+
+                // 並列ダウンロード
                 const [bytesReg, bytesBold] = await Promise.all([
-                    fetchWithTimeout(fontUrlReg, 10000),
-                    fetchWithTimeout(fontUrlBold, 10000).catch(e => null)
+                    fetchWithTimeout(fontUrlReg, 15000),
+                    fetchWithTimeout(fontUrlBold, 15000).catch(e => {
+                        console.warn("Bold font fetch failed, using Regular for all.", e);
+                        return null;
+                    })
                 ]);
 
-                if (bytesReg) fontRegular = await pdfDoc.embedFont(bytesReg);
-                if (bytesBold) fontBold = await pdfDoc.embedFont(bytesBold);
+                if (bytesReg) {
+                    fontRegular = await pdfDoc.embedFont(bytesReg);
+                    // 太字が失敗した場合はRegularで代用
+                    fontBold = bytesBold ? await pdfDoc.embedFont(bytesBold) : fontRegular;
+                } else {
+                    throw new Error("Regular font download failed.");
+                }
 
             } catch (e) {
-                console.warn("Font download failed.", e);
-                alert("日本語フォントの読み込みに失敗しました。標準フォントで保存します。");
+                console.error("Font download failed:", e);
+                alert("日本語フォントのダウンロードに失敗しました（" + e.message + "）。\n通信環境を確認するか、時間を置いて試してください。\n※このまま保存すると日本語が表示されません。");
+                // フォントがない場合、ここで処理を中断するか、標準フォントで続行（文字化け覚悟）となります
+                // 今回はエラー回避のため、StandardFontsのHelveticaを使用しますが、日本語は消えます
             }
 
             // --- 4. ページ描画ループ ---
