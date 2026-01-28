@@ -200,7 +200,7 @@
                             <canvas id="fabric-canvas"></canvas>
                         </div>
                         <div id="floating-toolbar" class="hidden" style="
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     background: white;
@@ -210,7 +210,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    z-index: 1000;
+    z-index: 9999;
     flex-wrap: nowrap;
     white-space: nowrap;
     width: max-content; /* これで横並びを強制 */

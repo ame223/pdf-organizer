@@ -1485,12 +1485,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeObj = fabricCanvas.getActiveObject();
         if (!activeObj) return;
 
-        // キャンバスの親要素（基準点）の画面上の位置を取得
-        const container = document.getElementById('canvas-container');
-        if (!container) return;
-        const containerRect = container.getBoundingClientRect();
+        // 1. キャンバスラッパーの画面上の位置を取得（スクロールやCSS変形を含む正確な位置）
+        const wrapperRect = canvasWrapper.getBoundingClientRect();
 
-        // オブジェクトのキャンバス内座標
+        // 2. オブジェクトのキャンバス内座標を取得
         const bound = activeObj.getBoundingRect();
 
         const toolbarWidth = floatingToolbar.offsetWidth;
@@ -1498,43 +1496,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
 
-        // 1. 仮の座標を計算 (キャンバス内での相対位置: オブジェクトの中央上部)
-        let top = bound.top - toolbarHeight - 10;
-        let left = bound.left + (bound.width / 2) - (toolbarWidth / 2);
+        // 3. 画面上の絶対座標（fixed用）を計算
+        // 重要: CSSでzoomしているため、オブジェクトの座標もscale倍する必要がある
+        // オブジェクトの中心X座標 = キャンバス左端 + (オブジェクト左端 * ズーム) + (オブジェクト幅 * ズーム / 2)
+        let left = wrapperRect.left + (bound.left * currentZoomScale) + ((bound.width * currentZoomScale) / 2) - (toolbarWidth / 2);
 
-        // --- 画面外へのはみ出し補正 ---
+        // オブジェクトの上端Y座標 = キャンバス上端 + (オブジェクト上端 * ズーム)
+        // ツールバーはオブジェクトの上に表示
+        let top = wrapperRect.top + (bound.top * currentZoomScale) - toolbarHeight - 10;
+
+        // --- 画面外へのはみ出し補正 (Viewport基準) ---
 
         // A. 左端の補正
-        // 「コンテナの画面左端 + ツールバーの相対位置」が 10px 未満なら、10pxの位置に強制移動
-        // (canvas-containerの外側にある余白も使えるようにする)
-        if (containerRect.left + left < 10) {
-            left = 10 - containerRect.left;
+        if (left < 10) {
+            left = 10;
         }
 
         // B. 右端の補正
-        // 「コンテナの画面左端 + ツールバーの相対位置 + ツールバー幅」が 画面幅-10px を超えるなら補正
-        if (containerRect.left + left + toolbarWidth > windowWidth - 10) {
-            left = (windowWidth - 10) - toolbarWidth - containerRect.left;
+        if (left + toolbarWidth > windowWidth - 10) {
+            left = windowWidth - 10 - toolbarWidth;
         }
 
-        // C. 上端の補正
-        // 「コンテナの画面上端 + ツールバーの相対位置」が ヘッダー下(約60pxと仮定)より上なら、オブジェクトの下に出す
-        // または画面上端(10px)を基準にする
-        if (containerRect.top + top < 10) {
-            top = bound.top + bound.height + 10;
+        // C. 上端の補正 (画面上にはみ出る場合はオブジェクトの下に出す)
+        if (top < 10) {
+            top = wrapperRect.top + ((bound.top + bound.height) * currentZoomScale) + 10;
         }
 
         // 座標を適用
         floatingToolbar.style.top = `${top}px`;
         floatingToolbar.style.left = `${left}px`;
 
-        // --- ポップアップの向き自動調整 ---
-        // ツールバーの実画面位置(Y)が画面上部(300px以内)にある場合は、色選択ポップアップを下向きに出す
-        const screenTop = containerRect.top + top;
-        const shouldOpenDown = screenTop < 300;
-
+        // ポップアップの向き自動調整
+        const shouldOpenDown = top < 300;
         const popups = [popupTextColor, popupBgColor];
         if (typeof popupBorderColor !== 'undefined') popups.push(popupBorderColor);
+        if (typeof popupAddShape !== 'undefined') popups.push(popupAddShape);
 
         popups.forEach(popup => {
             if (popup) {
