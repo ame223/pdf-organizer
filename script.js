@@ -78,8 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const floatBorderColor = document.getElementById('float-border-color');
     const indicatorBorderColor = document.getElementById('indicator-border-color');
 
-    // --- Fabric.js Extension: Textbox Box Border ---
+    // --- Fabric.js Extension: Textbox Box Border & Height ---
     if (typeof fabric !== 'undefined') {
+        // ★重要: テキストボックスの高さ計算をオーバーライドして、boxHeight（固定高さ）を優先する
+        const originalCalcTextHeight = fabric.Textbox.prototype.calcTextHeight;
+        fabric.Textbox.prototype.calcTextHeight = function () {
+            const textHeight = originalCalcTextHeight.call(this);
+            // boxHeightが設定されていれば、その高さを最低値として使用する
+            return Math.max(textHeight, this.boxHeight || 0);
+        };
+
         fabric.Textbox.prototype._renderBackground = function (ctx) {
             if (this.backgroundColor) {
                 ctx.fillStyle = this.backgroundColor;
@@ -91,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     this.height
                 );
             }
-            // ボックスの枠線描画 (追加)
+            // ボックスの枠線描画
             if (this.boxBorderWidth > 0 && this.boxBorderColor) {
                 ctx.strokeStyle = this.boxBorderColor;
                 ctx.lineWidth = this.boxBorderWidth;
@@ -1099,19 +1107,21 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.on('object:scaling', updateToolbarPosition);
             fabricCanvas.on('object:resizing', updateToolbarPosition);
 
-            // Scaling Event: テキストボックスの場合は文字サイズを変えずに幅だけ変える
+            // ★重要: スケーリング時の高さ調整ロジック
             fabricCanvas.on('object:scaling', (e) => {
                 const obj = e.target;
                 if (obj.type === 'textbox') {
-                    // 現在のスケールに基づいて幅を再計算
+                    // スケールに基づいて幅と高さを再計算し、scaleを1に戻す
+                    // これにより、文字は引き伸ばされず、ボックスサイズだけが変わる
                     const newWidth = obj.width * obj.scaleX;
+                    const newHeight = obj.height * obj.scaleY;
 
                     obj.set({
                         width: newWidth,
+                        boxHeight: newHeight, // カスタム高さを更新
                         scaleX: 1,
                         scaleY: 1
                     });
-                    // テキストの折り返し再計算を促すには splitByGrapheme などが必要な場合も
                 }
             });
 
@@ -1172,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const t = pointer.y < startY ? pointer.y : startY;
 
         if (currentEditorTool === 'text') {
-            drawingObject.set({ width: Math.max(w, 20), height: Math.max(h, 20) });
+            drawingObject.set({ width: Math.max(w, 20), height: Math.max(h, 20) }); // 高さも更新
         } else if (currentEditorTool === 'rect' || currentEditorTool === 'triangle') {
             drawingObject.set({ left: l, top: t, width: w, height: h });
         } else if (currentEditorTool === 'circle') {
@@ -1188,11 +1198,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (currentEditorTool === 'text' && drawingObject) {
             fabricCanvas.remove(drawingObject);
+            // テキストボックス生成
+            // ★ boxHeight をドラッグした高さに設定し、上下のリサイズハンドルを有効化
             const text = new fabric.Textbox('ここに入力', {
                 left: drawingObject.left, top: drawingObject.top,
                 width: drawingObject.width > 20 ? drawingObject.width : 150,
-                fontFamily: 'Noto Sans JP', fontSize: 24, fill: '#000000', backgroundColor: 'transparent'
+                boxHeight: drawingObject.height > 20 ? drawingObject.height : 50, // 初期の高さを設定
+                fontFamily: 'Noto Sans JP',
+                fontSize: 24,
+                fill: '#000000',
+                backgroundColor: 'transparent',
+                boxBorderWidth: 0,
+                boxBorderColor: '#000000',
+                lockScalingY: false // 縦方向のリサイズを許可
             });
+
+            // 縦方向のリサイズハンドルを明示的に有効化
+            text.setControlsVisibility({
+                mt: true,
+                mb: true,
+                ml: true,
+                mr: true
+            });
+
             fabricCanvas.add(text);
             fabricCanvas.setActiveObject(text);
         } else if (['rect', 'circle', 'triangle'].includes(currentEditorTool)) {
@@ -1295,18 +1323,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function onSelectionChanged(e) {
         const activeObj = e.selected ? e.selected[0] : fabricCanvas.getActiveObject();
         if (activeObj) {
-            // Only show for Text objects
-            if (activeObj.type === 'textbox' || activeObj.type === 'i-text') {
-                showFloatingToolbar(activeObj);
-                toolbarTextTools.classList.remove('hidden');
-                toolbarShapeTools.classList.add('hidden');
-            } else if (['rect', 'circle', 'triangle'].includes(activeObj.type)) {
-                showFloatingToolbar(activeObj);
-                toolbarTextTools.classList.add('hidden');
-                toolbarShapeTools.classList.remove('hidden');
-            } else {
-                hideFloatingToolbar();
-            }
+            showFloatingToolbar(activeObj);
         } else {
             hideFloatingToolbar();
         }
@@ -1314,7 +1331,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function onSelectionCleared() {
         hideFloatingToolbar();
-        // updateEditorControlsOriginal();
     }
 
     function onObjectModified(e) {
@@ -1338,13 +1354,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const isText = (obj.type === 'textbox' || obj.type === 'i-text');
 
         if (isText) {
-            toolbarTextTools.style.display = 'flex';
-            // toolbarShapeTools.style.display = 'none'; // ID removed in index.html update
-            // Text values sync handled below
+            if (toolbarTextTools) toolbarTextTools.style.display = 'flex';
         } else {
             // 図形の場合
-            toolbarTextTools.style.display = 'none';
-            // toolbarShapeTools.style.display = 'flex';
+            if (toolbarTextTools) toolbarTextTools.style.display = 'none';
         }
 
         // 共通: 太さ (Stroke Width / Box Border Width)
@@ -1368,64 +1381,64 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Sync Values ---
         // Font Size (Text Only)
         if (isText) {
-            floatFontSize.parentElement.style.display = 'flex';
-            floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
+            if (floatFontSize && floatFontSize.parentElement) {
+                floatFontSize.parentElement.style.display = 'flex';
+                floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
+            }
 
-            // ... (rest of sync logic)
+            if (floatTextColor) {
+                const textColor = obj.fill || '#000000';
+                floatTextColor.value = typeof textColor === 'string' ? textColor : '#000000';
+                if (indicatorTextColor) indicatorTextColor.style.backgroundColor = floatTextColor.value;
+                if (btnTextColorTrigger) btnTextColorTrigger.parentElement.title = "文字色";
+            }
+            // Formatting
+            if (btnBold) {
+                btnBold.classList.toggle('active', obj.fontWeight === 'bold');
+                btnBold.style.display = 'flex';
+            }
+            if (btnItalic) {
+                btnItalic.classList.toggle('active', obj.fontStyle === 'italic');
+                btnItalic.style.display = 'flex';
+            }
+            if (btnUnderline) {
+                btnUnderline.classList.toggle('active', !!obj.underline);
+                btnUnderline.style.display = 'flex';
+            }
+            // Alignment
+            if (btnAlignLeft) {
+                btnAlignLeft.classList.toggle('active', obj.textAlign === 'left');
+                btnAlignLeft.parentElement.style.display = 'flex';
+            }
+            if (btnAlignCenter) btnAlignCenter.classList.toggle('active', obj.textAlign === 'center');
+            if (btnAlignRight) btnAlignRight.classList.toggle('active', obj.textAlign === 'right');
 
-
-            // Text Formatting State
-            btnBold.classList.toggle('active', obj.fontWeight === 'bold');
-            btnItalic.classList.toggle('active', obj.fontStyle === 'italic');
-            btnUnderline.classList.toggle('active', !!obj.underline);
-
-            btnBold.style.display = 'flex';
-            btnItalic.style.display = 'flex';
-            btnUnderline.style.display = 'flex';
-
-            // Alignment State
-            btnAlignLeft.classList.toggle('active', obj.textAlign === 'left');
-            btnAlignCenter.classList.toggle('active', obj.textAlign === 'center');
-            btnAlignRight.classList.toggle('active', obj.textAlign === 'right');
-
-            btnAlignLeft.parentElement.style.display = 'flex';
-
-            // Colors
-            const textColor = obj.fill || '#000000';
-            floatTextColor.value = typeof textColor === 'string' ? textColor : '#000000';
-            indicatorTextColor.style.backgroundColor = floatTextColor.value;
-            btnTextColorTrigger.parentElement.title = "文字色";
-
-            // Background Color
-            // ...existing logic for background color...
         } else {
-            // Shape (Rect, Circle, Triangle)
-            // Hide text-specific controls (double check)
-            floatFontSize.parentElement.style.display = 'none';
-            btnBold.style.display = 'none';
-            btnItalic.style.display = 'none';
-            btnUnderline.style.display = 'none';
-            btnAlignLeft.parentElement.style.display = 'none';
+            // Shape
+            if (floatFontSize && floatFontSize.parentElement) floatFontSize.parentElement.style.display = 'none';
+            if (btnBold) btnBold.style.display = 'none';
+            if (btnItalic) btnItalic.style.display = 'none';
+            if (btnUnderline) btnUnderline.style.display = 'none';
+            if (btnAlignLeft && btnAlignLeft.parentElement) btnAlignLeft.parentElement.style.display = 'none';
 
-            // Map Stroke/Fill for Shapes
-            // Text Color Button -> Stroke Color
-            const stroke = obj.stroke || '#000000';
-            floatTextColor.value = stroke;
-            indicatorTextColor.style.backgroundColor = stroke;
-            btnTextColorTrigger.parentElement.title = "枠線の色";
-
-            // Bg Color Button -> Fill Color
-            // Logic handled below
+            if (floatTextColor) {
+                const stroke = obj.stroke || '#000000';
+                floatTextColor.value = stroke;
+                if (indicatorTextColor) indicatorTextColor.style.backgroundColor = stroke;
+                if (btnTextColorTrigger) btnTextColorTrigger.parentElement.title = "枠線の色";
+            }
         }
 
         // Common Color Logic (Background/Fill)
         const bgColor = isText ? (obj.backgroundColor || 'transparent') : (obj.fill || 'transparent');
 
         if (!bgColor || bgColor === 'transparent') {
-            floatBgColor.value = '#ffffff'; // Default
-            bgOpacity.value = 0;
-            indicatorBgColor.style.backgroundColor = 'transparent';
-            indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')'; // Checker
+            if (floatBgColor) floatBgColor.value = '#ffffff'; // Default
+            if (bgOpacity) bgOpacity.value = 0;
+            if (indicatorBgColor) {
+                indicatorBgColor.style.backgroundColor = 'transparent';
+                indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')'; // Checker
+            }
         } else {
             // Parse RGBA or Hex
             if (bgColor.startsWith('rgba')) {
@@ -1437,25 +1450,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     const b = parseInt(match[3]);
                     const a = match[4] !== undefined ? parseFloat(match[4]) : 1;
 
-                    floatBgColor.value = rgbToHex(r, g, b);
-                    bgOpacity.value = a;
-                    indicatorBgColor.style.backgroundColor = bgColor;
-                    indicatorBgColor.style.backgroundImage = 'none';
+                    if (floatBgColor) floatBgColor.value = rgbToHex(r, g, b);
+                    if (bgOpacity) bgOpacity.value = a;
+                    if (indicatorBgColor) {
+                        indicatorBgColor.style.backgroundColor = bgColor;
+                        indicatorBgColor.style.backgroundImage = 'none';
+                    }
                 }
             } else {
                 // Hex or Name
-                floatBgColor.value = bgColor; // Assuming Hex for simplicity
-                bgOpacity.value = 1;
-                indicatorBgColor.style.backgroundColor = bgColor;
-                indicatorBgColor.style.backgroundImage = 'none';
+                if (floatBgColor) floatBgColor.value = bgColor; // Assuming Hex for simplicity
+                if (bgOpacity) bgOpacity.value = 1;
+                if (indicatorBgColor) {
+                    indicatorBgColor.style.backgroundColor = bgColor;
+                    indicatorBgColor.style.backgroundImage = 'none';
+                }
             }
         }
 
-        btnBgColorTrigger.parentElement.title = isText ? "背景色" : "塗りつぶし色";
+        if (btnBgColorTrigger) btnBgColorTrigger.parentElement.title = isText ? "背景色" : "塗りつぶし色";
 
         // Show Color controls
-        btnTextColorTrigger.parentElement.style.display = 'flex';
-        btnBgColorTrigger.parentElement.style.display = 'flex';
+        if (btnTextColorTrigger && btnTextColorTrigger.parentElement) btnTextColorTrigger.parentElement.style.display = 'flex';
+        if (btnBgColorTrigger && btnBgColorTrigger.parentElement) btnBgColorTrigger.parentElement.style.display = 'flex';
 
         updateToolbarPosition();
     }
