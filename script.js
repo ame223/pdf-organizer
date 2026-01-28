@@ -1312,11 +1312,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global click listener to close popups if clicked outside
     document.addEventListener('click', (e) => {
-        if (!e.target.closest('#btn-text-color-trigger') && !e.target.closest('#popup-text-color')) {
+        if (popupTextColor && !e.target.closest('#btn-text-color-trigger') && !e.target.closest('#popup-text-color')) {
             popupTextColor.classList.add('hidden');
         }
-        if (!e.target.closest('#btn-bg-color-trigger') && !e.target.closest('#popup-bg-color')) {
+        if (popupBgColor && !e.target.closest('#btn-bg-color-trigger') && !e.target.closest('#popup-bg-color')) {
             popupBgColor.classList.add('hidden');
+        }
+        if (popupBorderColor && !e.target.closest('#btn-border-color-trigger') && !e.target.closest('#popup-border-color')) {
+            popupBorderColor.classList.add('hidden');
         }
     });
 
@@ -1486,9 +1489,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function hideFloatingToolbar() {
-        floatingToolbar.classList.add('hidden');
-        popupTextColor.classList.add('hidden');
-        popupBgColor.classList.add('hidden');
+        if (floatingToolbar) floatingToolbar.classList.add('hidden');
+        if (popupTextColor) popupTextColor.classList.add('hidden');
+        if (popupBgColor) popupBgColor.classList.add('hidden');
+        if (popupBorderColor) popupBorderColor.classList.add('hidden');
     }
 
     function updateToolbarPosition() {
@@ -1521,7 +1525,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ツールバーが画面の上の方(300px以内)にある場合、ポップアップを下に出す
         const shouldOpenDown = top < 300;
 
-        [popupTextColor, popupBgColor].forEach(popup => {
+        [popupTextColor, popupBgColor, popupBorderColor].forEach(popup => {
             if (popup) {
                 if (shouldOpenDown) {
                     popup.classList.add('opens-down');
