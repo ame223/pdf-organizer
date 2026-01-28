@@ -2090,14 +2090,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnSave = document.querySelector('#edit-action-buttons .btn.is-primary');
         const originalBtnText = btnSave ? btnSave.innerHTML : '';
 
+        // グローバルキャッシュの初期化チェック
+        if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null;
+
         if (btnSave) {
             btnSave.disabled = true;
-            btnSave.innerHTML = '<i class="material-icons result-spin">sync</i> 保存中...';
+
+            // ★変更: 初回（キャッシュなし）と2回目以降でメッセージを出し分ける
+            if (!window.cachedFontBytesReg) {
+                // 初回: ダウンロードが発生するため案内を出す
+                // ボタン内で改行して注釈を入れる
+                btnSave.innerHTML = '<i class="material-icons result-spin">cloud_download</i> フォント準備中...<span style="font-size:0.8em; display:block;">(初回のみ時間がかかります)</span>';
+            } else {
+                // 2回目以降: すぐ終わるのでシンプルに
+                btnSave.innerHTML = '<i class="material-icons result-spin">sync</i> 保存中...';
+            }
+
             document.body.style.cursor = 'wait';
         }
 
-        // UI描画時間を確保
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // UI描画時間を確保（これが無いとメッセージが変わる前に処理が走ってしまう）
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         try {
             // --- 2. メモリ対策済みJSON保存 ---
@@ -2122,8 +2135,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let fontBold = null;
 
             // グローバルキャッシュの初期化（未定義の場合）
-            if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null;
-            if (!window.cachedFontBytesBold) window.cachedFontBytesBold = null;
+            // if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null; // Moved to top of function
+            // if (!window.cachedFontBytesBold) window.cachedFontBytesBold = null; // Removed, only check for Reg
 
             // タイムアウト付きフェッチ関数
             const fetchWithTimeout = (url, ms) => {
