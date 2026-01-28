@@ -1364,19 +1364,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-
     function showFloatingToolbar(obj) {
         if (!obj) return;
         floatingToolbar.classList.remove('hidden');
 
         // テキストか図形かで表示切り替え
         const isText = (obj.type === 'textbox' || obj.type === 'i-text');
+        
+        // ★追加: 枠線色ラッパー要素の取得
+        const wrapperBorderColor = document.getElementById('wrapper-border-color');
 
         if (isText) {
             if (toolbarTextTools) toolbarTextTools.style.display = 'flex';
+            // ★追加: テキストでも枠線色アイコンを表示する
+            if (wrapperBorderColor) wrapperBorderColor.style.display = 'flex';
         } else {
             // 図形の場合
             if (toolbarTextTools) toolbarTextTools.style.display = 'none';
+            if (wrapperBorderColor) wrapperBorderColor.style.display = 'none';
         }
 
         // 共通: 太さ (Stroke Width / Box Border Width)
@@ -1387,8 +1392,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentVal = isText ? (obj.boxBorderWidth || 0) : (obj.strokeWidth || 0);
             floatStrokeWidth.value = currentVal;
         }
-
-
 
         // --- Sync Values ---
         // Font Size (Text Only)
@@ -1716,18 +1719,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Stroke/Border Width
-    floatStrokeWidth.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value, 10);
-        const activeObj = fabricCanvas.getActiveObject();
-        if (activeObj) {
-            if (activeObj.type === 'textbox') {
-                activeObj.set('boxBorderWidth', val); // テキストは独自プロパティ
-            } else {
-                activeObj.set('strokeWidth', val);    // 図形は標準プロパティ
+    if (floatStrokeWidth) {
+        floatStrokeWidth.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+            
+            // 単一選択か複数選択かに関わらず、すべての対象を取得
+            const activeObjects = fabricCanvas.getActiveObjects();
+
+            if (activeObjects.length > 0) {
+                activeObjects.forEach(obj => {
+                    if (obj.type === 'textbox' || obj.type === 'i-text') {
+                        // テキストボックスは独自の枠線プロパティ
+                        obj.set('boxBorderWidth', val);
+                    } else {
+                        // 図形は標準の枠線プロパティ
+                        obj.set('strokeWidth', val);
+                    }
+                });
+                
+                fabricCanvas.requestRenderAll();
+                saveHistory(); // 履歴に保存
             }
-            fabricCanvas.renderAll();
-        }
-    });
+        });
+    }
 
     // 枠線の色変更 (テキスト用)
     if (floatBorderColor) {
@@ -1741,7 +1755,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
     // 枠線色ポップアップの開閉
     if (btnBorderColorTrigger) {
         btnBorderColorTrigger.addEventListener('click', (e) => {
