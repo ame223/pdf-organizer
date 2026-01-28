@@ -212,7 +212,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (currentMode === 'edit') {
             // --- 編集モード: ヘッダーを使用 ---
-            editHeaderControls.classList.remove('hidden');
 
             // PDFを追加ボタン
             const btnAdd = createButton('add_to_photos', 'PDFを追加', () => {
@@ -373,6 +372,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (ctrls) ctrls.classList.add('hidden');
         }
 
+        // ★追加: 編集用ヘッダーコントロールも隠す
+        if (editHeaderControls) {
+            editHeaderControls.classList.add("hidden");
+        }
+
         editorPages = [];
         if (fabricCanvas) {
             fabricCanvas.dispose();
@@ -433,6 +437,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         if (currentMode === 'edit') {
+
+            // ★追加: ファイルがロードされたのでツールバーを表示する
+            if (editHeaderControls) {
+                editHeaderControls.classList.remove("hidden");
+            }
             dropZone.classList.add('hidden');
             previewArea.classList.add('hidden');
             editorArea.classList.remove('hidden');
