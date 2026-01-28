@@ -265,7 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset Editor
         editorArea.classList.add('hidden');
         previewArea.classList.remove('hidden');
-        editorControls.classList.add('hidden');
+
+        // ★ここを修正（nullチェックを追加）
+        if (editorControls) {
+            editorControls.classList.add('hidden');
+        }
+
         editorPages = [];
         if (fabricCanvas) {
             fabricCanvas.dispose();
@@ -1039,6 +1044,76 @@ document.addEventListener('DOMContentLoaded', () => {
             // サイドバー描画
             renderEditorSidebar();
         }
+    }
+
+    // --- Zoom & Pagination Logic ---
+
+    // ズーム表示更新関数
+    function updateZoomDisplay() {
+        if (!zoomLevelText || !canvasWrapper) return;
+
+        // 浮動小数点の誤差対策
+        currentZoomScale = Math.round(currentZoomScale * 1000) / 1000;
+
+        // テキスト更新
+        zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+
+        // スタイル適用
+        canvasWrapper.style.transformOrigin = 'top center';
+        canvasWrapper.style.transform = `scale(${currentZoomScale})`;
+
+        // 拡大時の余白調整（画面からはみ出さないように）
+        if (currentZoomScale > 1) {
+            const margin = (currentZoomScale - 1) * 300;
+            canvasWrapper.style.marginTop = `${margin}px`;
+            canvasWrapper.style.marginBottom = `${margin}px`;
+        } else {
+            canvasWrapper.style.marginTop = '0';
+            canvasWrapper.style.marginBottom = '0';
+        }
+    }
+
+    // ズームインボタン (5%刻み)
+    if (btnZoomIn) {
+        btnZoomIn.addEventListener('click', () => {
+            if (currentZoomScale < 3.0) {
+                currentZoomScale += 0.05;
+                updateZoomDisplay();
+            }
+        });
+    }
+
+    // ズームアウトボタン (5%刻み)
+    if (btnZoomOut) {
+        btnZoomOut.addEventListener('click', () => {
+            if (currentZoomScale > 0.3) {
+                currentZoomScale -= 0.05;
+                updateZoomDisplay();
+            }
+        });
+    }
+
+    // 前へボタン
+    if (btnPrevPage) {
+        btnPrevPage.addEventListener('click', () => {
+            if (currentEditorPageIndex > 0) {
+                loadEditorPage(currentEditorPageIndex - 1);
+            }
+        });
+    }
+
+    // 次へボタン
+    if (btnNextPage) {
+        btnNextPage.addEventListener('click', () => {
+            // editorPageMapが存在しない場合のフォールバックも含める
+            const maxPage = (typeof editorPageMap !== 'undefined' && editorPageMap.length > 0)
+                ? editorPageMap.length
+                : (currentEditorPdfJsDoc ? currentEditorPdfJsDoc.numPages : 1);
+
+            if (currentEditorPageIndex < maxPage - 1) {
+                loadEditorPage(currentEditorPageIndex + 1);
+            }
+        });
     }
 
     // --- Toolbar Interaction Logic ---
