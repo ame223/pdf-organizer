@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const editorControls = document.getElementById('editor-controls'); // May be null now, handled in logic
     const btnAddText = document.getElementById('btn-add-text');
     const btnAddRect = document.getElementById('btn-add-rect');
+    const btnAddCircle = document.getElementById('btn-add-circle');
+    const btnAddTriangle = document.getElementById('btn-add-triangle');
     const btnPrevPage = document.getElementById('btn-prev-page');
     const btnNextPage = document.getElementById('btn-next-page');
     const pageIndicator = document.getElementById('page-indicator');
@@ -797,6 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Floating Toolbar Elements
     const floatingToolbar = document.getElementById('floating-toolbar');
     const floatFontSize = document.getElementById('float-font-size');
+    const floatStrokeWidth = document.getElementById('float-stroke-width');
     const floatBtnDelete = document.getElementById('float-btn-delete');
 
     // New Toolbar Elements
@@ -806,6 +809,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnAlignLeft = document.getElementById('btn-align-left');
     const btnAlignCenter = document.getElementById('btn-align-center');
     const btnAlignRight = document.getElementById('btn-align-right');
+    const btnDeleteObj = document.getElementById('btn-delete-obj');
+
+    // Groups
+    const toolbarTextTools = document.getElementById('toolbar-text-tools');
+    const toolbarShapeTools = document.getElementById('toolbar-shape-tools');
 
     // Color Popups
     const btnTextColorTrigger = document.getElementById('btn-text-color-trigger');
@@ -1161,6 +1169,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Only show for Text objects
             if (activeObj.type === 'textbox' || activeObj.type === 'i-text') {
                 showFloatingToolbar(activeObj);
+                toolbarTextTools.classList.remove('hidden');
+                toolbarShapeTools.classList.add('hidden');
+            } else if (['rect', 'circle', 'triangle'].includes(activeObj.type)) {
+                showFloatingToolbar(activeObj);
+                toolbarTextTools.classList.add('hidden');
+                toolbarShapeTools.classList.remove('hidden');
             } else {
                 hideFloatingToolbar();
             }
@@ -1180,18 +1194,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (floatFontSize) {
                 floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
             }
+        } else if (obj && ['rect', 'circle', 'triangle'].includes(obj.type)) {
+            if (floatStrokeWidth) {
+                floatStrokeWidth.value = obj.strokeWidth;
+            }
         }
     }
 
     function showFloatingToolbar(obj) {
         if (!obj) return;
-
         floatingToolbar.classList.remove('hidden');
+
+        // テキストか図形かで表示切り替え
+        const isText = (obj.type === 'textbox' || obj.type === 'i-text');
+
+        if (isText) {
+            toolbarTextTools.style.display = 'flex';
+            toolbarShapeTools.style.display = 'none';
+            // Text values sync handled below
+        } else {
+            // 図形の場合
+            toolbarTextTools.style.display = 'none';
+            toolbarShapeTools.style.display = 'flex';
+
+            // 線の太さをセット
+            if (floatStrokeWidth) floatStrokeWidth.value = obj.strokeWidth || 3;
+        }
 
         // --- Sync Values ---
 
-        // Font Size
-        if (obj.type === 'textbox' || obj.type === 'i-text') {
+        // Font Size (Text Only)
+        if (isText) {
             floatFontSize.parentElement.style.display = 'flex';
             floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
 
@@ -1215,89 +1248,68 @@ document.addEventListener('DOMContentLoaded', () => {
             const textColor = obj.fill || '#000000';
             floatTextColor.value = typeof textColor === 'string' ? textColor : '#000000';
             indicatorTextColor.style.backgroundColor = floatTextColor.value;
+            btnTextColorTrigger.parentElement.title = "文字色";
 
-            // Background Color & Opacity
-            const bgColor = obj.backgroundColor || 'transparent';
-
-            if (!bgColor || bgColor === 'transparent') {
-                floatBgColor.value = '#ffffff'; // Default
-                bgOpacity.value = 0;
-                indicatorBgColor.style.backgroundColor = 'transparent';
-                indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')'; // Checker
-            } else {
-                // Parse RGBA or Hex
-                // Fabric stores straightforwardly usually.
-                if (bgColor.startsWith('rgba')) {
-                    // Extract alpha
-                    const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                    if (match) {
-                        const r = parseInt(match[1]);
-                        const g = parseInt(match[2]);
-                        const b = parseInt(match[3]);
-                        const a = match[4] !== undefined ? parseFloat(match[4]) : 1;
-
-                        floatBgColor.value = rgbToHex(r, g, b);
-                        bgOpacity.value = a;
-                        indicatorBgColor.style.backgroundColor = bgColor;
-                        indicatorBgColor.style.backgroundImage = 'none';
-                    }
-                } else {
-                    // Hex or Name
-                    floatBgColor.value = bgColor; // Assuming Hex for simplicity
-                    bgOpacity.value = 1;
-                    indicatorBgColor.style.backgroundColor = bgColor;
-                    indicatorBgColor.style.backgroundImage = 'none';
-                }
-            }
-
-            // Show Bg/Text controls
-            btnTextColorTrigger.parentElement.style.display = 'flex';
-            btnBgColorTrigger.parentElement.style.display = 'flex';
-
-        } else if (obj.type === 'rect') {
-            // Hide text-specific controls
+            // Background Color
+            // ...existing logic for background color...
+        } else {
+            // Shape (Rect, Circle, Triangle)
+            // Hide text-specific controls (double check)
             floatFontSize.parentElement.style.display = 'none';
             btnBold.style.display = 'none';
             btnItalic.style.display = 'none';
             btnUnderline.style.display = 'none';
             btnAlignLeft.parentElement.style.display = 'none';
 
-            // Map Stroke/Fill for Rect
-            // Text Trigger -> Stroke
+            // Map Stroke/Fill for Shapes
+            // Text Color Button -> Stroke Color
             const stroke = obj.stroke || '#000000';
             floatTextColor.value = stroke;
             indicatorTextColor.style.backgroundColor = stroke;
             btnTextColorTrigger.parentElement.title = "枠線の色";
 
-            // Bg Trigger -> Fill
-            const fill = obj.fill || 'transparent';
-            if (!fill || fill === 'transparent') {
-                floatBgColor.value = '#ffffff';
-                bgOpacity.value = 0;
-                indicatorBgColor.style.backgroundColor = 'transparent';
-                indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')';
-            } else {
-                if (fill.startsWith('rgba')) {
-                    const match = fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                    if (match) {
-                        const r = parseInt(match[1]);
-                        const g = parseInt(match[2]);
-                        const b = parseInt(match[3]);
-                        const a = match[4] !== undefined ? parseFloat(match[4]) : 1;
-                        floatBgColor.value = rgbToHex(r, g, b);
-                        bgOpacity.value = a;
-                        indicatorBgColor.style.backgroundColor = fill;
-                        indicatorBgColor.style.backgroundImage = 'none';
-                    }
-                } else {
-                    floatBgColor.value = fill;
-                    bgOpacity.value = 1;
-                    indicatorBgColor.style.backgroundColor = fill;
+            // Bg Color Button -> Fill Color
+            // Logic handled below
+        }
+
+        // Common Color Logic (Background/Fill)
+        const bgColor = isText ? (obj.backgroundColor || 'transparent') : (obj.fill || 'transparent');
+
+        if (!bgColor || bgColor === 'transparent') {
+            floatBgColor.value = '#ffffff'; // Default
+            bgOpacity.value = 0;
+            indicatorBgColor.style.backgroundColor = 'transparent';
+            indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')'; // Checker
+        } else {
+            // Parse RGBA or Hex
+            if (bgColor.startsWith('rgba')) {
+                // Extract alpha
+                const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                if (match) {
+                    const r = parseInt(match[1]);
+                    const g = parseInt(match[2]);
+                    const b = parseInt(match[3]);
+                    const a = match[4] !== undefined ? parseFloat(match[4]) : 1;
+
+                    floatBgColor.value = rgbToHex(r, g, b);
+                    bgOpacity.value = a;
+                    indicatorBgColor.style.backgroundColor = bgColor;
                     indicatorBgColor.style.backgroundImage = 'none';
                 }
+            } else {
+                // Hex or Name
+                floatBgColor.value = bgColor; // Assuming Hex for simplicity
+                bgOpacity.value = 1;
+                indicatorBgColor.style.backgroundColor = bgColor;
+                indicatorBgColor.style.backgroundImage = 'none';
             }
-            btnBgColorTrigger.parentElement.title = "塗りつぶし色";
         }
+
+        btnBgColorTrigger.parentElement.title = isText ? "背景色" : "塗りつぶし色";
+
+        // Show Color controls
+        btnTextColorTrigger.parentElement.style.display = 'flex';
+        btnBgColorTrigger.parentElement.style.display = 'flex';
 
         updateToolbarPosition();
     }
@@ -1388,74 +1400,137 @@ document.addEventListener('DOMContentLoaded', () => {
                 top: startY,
                 width: 0,
                 height: 0,
+                fill: 'transparent',
+                stroke: '#000000',
+                strokeWidth: 3,
+                strokeUniform: true
+            });
+            fabricCanvas.add(drawingObject);
+        } else if (currentEditorTool === 'circle') {
+            drawingObject = new fabric.Ellipse({
+                left: startX,
+                top: startY,
+                rx: 0,
+                ry: 0,
+                fill: 'transparent',
+                stroke: '#000000',
+                strokeWidth: 3,
+                strokeUniform: true
+            });
+            fabricCanvas.add(drawingObject);
+        } else if (currentEditorTool === 'triangle') {
+            drawingObject = new fabric.Triangle({
+                left: startX,
+                top: startY,
+                width: 0,
                 height: 0,
                 fill: 'transparent',
                 stroke: '#000000',
-                strokeWidth: 3
+                strokeWidth: 3,
+                strokeUniform: true
             });
             fabricCanvas.add(drawingObject);
         }
     }
 
     function onMouseMove(o) {
-        if (!isDrawing || !drawingObject) return;
+        if (isDrawing && drawingObject) {
+            const pointer = fabricCanvas.getPointer(o.e);
 
-        const pointer = fabricCanvas.getPointer(o.e);
+            if (currentEditorTool === 'text') {
+                const width = Math.abs(pointer.x - startX);
+                const height = Math.abs(pointer.y - startY);
+                drawingObject.set({ width: Math.max(width, 20), height: Math.max(height, 20) }); // Min size
+            } else if (currentEditorTool === 'rect') {
+                const width = Math.abs(pointer.x - startX);
+                const height = Math.abs(pointer.y - startY);
 
-        if (currentEditorTool === 'text' || currentEditorTool === 'rect') {
-            if (startX > pointer.x) {
-                drawingObject.set({ left: Math.abs(pointer.x) });
+                // 負の方向への描画対応
+                const left = pointer.x < startX ? pointer.x : startX;
+                const top = pointer.y < startY ? pointer.y : startY;
+
+                drawingObject.set({ left: left, top: top, width: width, height: height });
+            } else if (currentEditorTool === 'circle') {
+                const width = Math.abs(pointer.x - startX);
+                const height = Math.abs(pointer.y - startY);
+                const left = pointer.x < startX ? pointer.x : startX;
+                const top = pointer.y < startY ? pointer.y : startY;
+
+                drawingObject.set({ left: left, top: top, rx: width / 2, ry: height / 2 });
+            } else if (currentEditorTool === 'triangle') {
+                const width = Math.abs(pointer.x - startX);
+                const height = Math.abs(pointer.y - startY);
+                const left = pointer.x < startX ? pointer.x : startX;
+                const top = pointer.y < startY ? pointer.y : startY;
+
+                drawingObject.set({ left: left, top: top, width: width, height: height });
             }
-            if (startY > pointer.y) {
-                drawingObject.set({ top: Math.abs(pointer.y) });
-            }
-
-            drawingObject.set({ width: Math.abs(startX - pointer.x) });
-            drawingObject.set({ height: Math.abs(startY - pointer.y) });
 
             fabricCanvas.renderAll();
         }
     }
 
     function onMouseUp(o) {
-        if (currentEditorTool === 'select') return;
+        // Finish Drawing
+        if (currentEditorTool !== 'select' && currentEditorTool !== 'text' && currentEditorTool !== 'rect' && currentEditorTool !== 'circle' && currentEditorTool !== 'triangle') return;
 
-        isDrawing = false;
+        if (isDrawing) {
+            isDrawing = false;
 
-        if (currentEditorTool === 'text') {
-            fabricCanvas.remove(drawingObject);
+            // finalize object
+            if (drawingObject) {
+                drawingObject.setCoords();
+            }
 
-            const width = drawingObject.width;
-            const height = drawingObject.height;
-            const finalWidth = width > 20 ? width : 150;
+            // テキストの場合は入力状態にする
+            if (currentEditorTool === 'text' && drawingObject) {
+                fabricCanvas.remove(drawingObject); // Remove temporary rect
 
-            const text = new fabric.Textbox('ここに入力', {
-                left: drawingObject.left,
-                top: drawingObject.top,
-                width: finalWidth,
-                fontFamily: 'Noto Sans JP',
-                fill: '#000000', // Default black
-                fontSize: 24,
-                splitByGrapheme: true,
-                backgroundColor: 'transparent'
-            });
+                const width = drawingObject.width;
+                const height = drawingObject.height;
+                const finalWidth = width > 20 ? width : 150;
 
-            text.setControlsVisibility({
-                mt: false, mb: false, ml: true, mr: true,
-                bl: false, br: false, tl: false, tr: false,
-                mtr: true
-            });
+                const text = new fabric.Textbox('ここに入力', {
+                    left: drawingObject.left,
+                    top: drawingObject.top,
+                    width: finalWidth,
+                    fontFamily: 'Noto Sans JP',
+                    fill: '#000000', // Default black
+                    fontSize: 24,
+                    splitByGrapheme: true,
+                    backgroundColor: 'transparent'
+                });
 
-            fabricCanvas.add(text);
-            fabricCanvas.setActiveObject(text);
-            fabricCanvas.renderAll();
+                text.setControlsVisibility({
+                    mt: false, mb: false, ml: true, mr: true,
+                    bl: false, br: false, tl: false, tr: false,
+                    mtr: true
+                });
 
-        } else if (currentEditorTool === 'rect') {
-            drawingObject.setCoords();
-            fabricCanvas.setActiveObject(drawingObject);
+                fabricCanvas.add(text);
+                fabricCanvas.setActiveObject(text);
+                fabricCanvas.renderAll();
+                saveHistory(); // Save history after adding text
+            } else if (['rect', 'circle', 'triangle'].includes(currentEditorTool)) {
+                // Reset tool to select after drawing shape
+                currentEditorTool = 'select';
+                fabricCanvas.defaultCursor = 'default';
+
+                if (drawingObject) {
+                    // Check for minimum size for shapes
+                    if (drawingObject.width < 5 || drawingObject.height < 5) {
+                        fabricCanvas.remove(drawingObject);
+                    } else {
+                        fabricCanvas.setActiveObject(drawingObject);
+                        saveHistory();
+                    }
+                }
+            }
+
+            drawingObject = null;
         }
 
-        drawingObject = null;
+        // Reset tool and button states
         currentEditorTool = 'select';
         fabricCanvas.defaultCursor = 'default';
 
@@ -1463,34 +1538,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btnAddText.classList.add('is-outlined');
         btnAddRect.classList.remove('is-primary');
         btnAddRect.classList.add('is-outlined');
+        btnAddCircle.classList.remove('is-primary');
+        btnAddCircle.classList.add('is-outlined');
+        btnAddTriangle.classList.remove('is-primary');
+        btnAddTriangle.classList.add('is-outlined');
     }
     // --- UI Event Listeners ---
 
     // --- UI Event Listeners ---
-
-    btnAddText.addEventListener('click', () => {
-        currentEditorTool = 'text';
-        fabricCanvas.defaultCursor = 'text';
-        fabricCanvas.discardActiveObject();
-        fabricCanvas.renderAll();
-
-        btnAddText.classList.remove('is-outlined');
-        btnAddText.classList.add('is-primary');
-        btnAddRect.classList.remove('is-primary');
-        btnAddRect.classList.add('is-outlined');
-    });
-
-    btnAddRect.addEventListener('click', () => {
-        currentEditorTool = 'rect';
-        fabricCanvas.defaultCursor = 'crosshair';
-        fabricCanvas.discardActiveObject();
-        fabricCanvas.renderAll();
-
-        btnAddRect.classList.remove('is-outlined');
-        btnAddRect.classList.add('is-primary');
-        btnAddText.classList.remove('is-primary');
-        btnAddText.classList.add('is-outlined');
-    });
 
     // --- Toolbar Interaction Handlers ---
 
@@ -1591,6 +1646,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Stroke Width
+    floatStrokeWidth.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && ['rect', 'circle', 'triangle'].includes(activeObj.type)) {
+            activeObj.set('strokeWidth', val);
+            fabricCanvas.renderAll();
+        }
+    });
+
     // Text Color Input
     floatTextColor.addEventListener('input', (e) => {
         updateTextColor(e.target.value);
@@ -1599,7 +1664,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateTextColor(val) {
         const activeObj = fabricCanvas.getActiveObject();
         if (activeObj) {
-            if (activeObj.type === 'rect') {
+            if (activeObj.type === 'rect' || activeObj.type === 'circle' || activeObj.type === 'triangle') {
                 activeObj.set('stroke', val);
             } else {
                 activeObj.set('fill', val);
@@ -1634,7 +1699,7 @@ document.addEventListener('DOMContentLoaded', () => {
             indicatorBgColor.style.backgroundImage = 'none';
         }
 
-        if (activeObj.type === 'rect') {
+        if (activeObj.type === 'rect' || activeObj.type === 'circle' || activeObj.type === 'triangle') {
             activeObj.set('fill', finalColor);
         } else {
             activeObj.set('backgroundColor', finalColor);
@@ -1875,6 +1940,61 @@ document.addEventListener('DOMContentLoaded', () => {
                                 color: fillColor,
                                 opacity: opacity
                             });
+                        } else if (obj.type === 'circle' || obj.type === 'ellipse') {
+                            let fillColor = undefined;
+                            let opacity = 1;
+
+                            if (obj.fill && obj.fill !== 'transparent') {
+                                if (obj.fill.startsWith('rgba')) {
+                                    const match = obj.fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                                    if (match) {
+                                        fillColor = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
+                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
+                                    }
+                                } else {
+                                    fillColor = hexToRgb(obj.fill);
+                                }
+                            }
+
+                            page.drawEllipse({
+                                x: x + objWidth / 2, y: y + objHeight / 2,
+                                xRadius: obj.rx * obj.scaleX * scaleFactor,
+                                yRadius: obj.ry * obj.scaleY * scaleFactor,
+                                borderColor: hexToRgb(obj.stroke),
+                                borderWidth: obj.strokeWidth * scaleFactor,
+                                color: fillColor,
+                                opacity: opacity
+                            });
+                        } else if (obj.type === 'triangle') {
+                            let fillColor = undefined;
+                            let opacity = 1;
+
+                            if (obj.fill && obj.fill !== 'transparent') {
+                                if (obj.fill.startsWith('rgba')) {
+                                    const match = obj.fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                                    if (match) {
+                                        fillColor = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
+                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
+                                    }
+                                } else {
+                                    fillColor = hexToRgb(obj.fill);
+                                }
+                            }
+
+                            // Fabric.js triangle is an isosceles triangle with base at the bottom.
+                            // PDFLib drawPolygon needs points.
+                            const points = [
+                                { x: x + objWidth / 2, y: y + objHeight }, // Top point
+                                { x: x, y: y },                         // Bottom-left
+                                { x: x + objWidth, y: y }               // Bottom-right
+                            ];
+
+                            page.drawPolygon(points, {
+                                borderColor: hexToRgb(obj.stroke),
+                                borderWidth: obj.strokeWidth * scaleFactor,
+                                color: fillColor,
+                                opacity: opacity
+                            });
                         }
                     }
                 }
@@ -1920,6 +2040,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const newBtnZoomOut = resetElement('btn-zoom-out');
         const newBtnPrev = resetElement('btn-prev-page');
         const newBtnNext = resetElement('btn-next-page');
+        const newBtnAddText = resetElement('btn-add-text');
+        const newBtnAddRect = resetElement('btn-add-rect');
+        const newBtnAddCircle = resetElement('btn-add-circle');
+        const newBtnAddTriangle = resetElement('btn-add-triangle');
+        const newBtnDeleteObj = resetElement('btn-delete-obj');
+
 
         // ズーム表示の更新関数
         const updateZoomDisplay = () => {

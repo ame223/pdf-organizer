@@ -94,6 +94,14 @@
                         style="padding: 5px 10px; font-size: 0.8rem;">
                         <i class="material-icons" style="font-size: 18px;">crop_square</i> 四角
                     </button>
+                    <button id="btn-add-circle" class="btn is-outlined" title="円追加"
+                        style="padding: 5px 10px; font-size: 0.8rem;">
+                        <i class="material-icons" style="font-size: 18px;">circle</i> 丸
+                    </button>
+                    <button id="btn-add-triangle" class="btn is-outlined" title="三角形追加"
+                        style="padding: 5px 10px; font-size: 0.8rem;">
+                        <i class="material-icons" style="font-size: 18px;">change_history</i> 三角
+                    </button>
 
                     <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
 
@@ -197,37 +205,47 @@
         max-width: none;
     ">
                             <!-- Font Size -->
-                            <div class="toolbar-group">
-                                <i class="material-icons" style="font-size: 18px; color: #555;">format_size</i>
-                                <input type="number" id="float-font-size" value="24" min="8" max="200" title="フォントサイズ"
+                            <div id="toolbar-shape-tools" class="toolbar-group hidden" style="display: none;">
+                                <i class="material-icons" style="font-size: 18px; color: #555;">line_weight</i>
+                                <input type="number" id="float-stroke-width" value="3" min="0" max="20" title="線の太さ"
                                     style="width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
+                                <div class="divider"></div>
                             </div>
 
-                            <div class="divider"></div>
+                            <div id="toolbar-text-tools" class="toolbar-group" style="display: flex;">
+                                <div class="toolbar-group">
+                                    <i class="material-icons" style="font-size: 18px; color: #555;">format_size</i>
+                                    <input type="number" id="float-font-size" value="24" min="8" max="200"
+                                        title="フォントサイズ"
+                                        style="width: 50px; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">
+                                </div>
 
-                            <!-- Text Style -->
-                            <div class="toolbar-group">
-                                <button id="btn-bold" class="btn-tool" title="太字 (Bold)"><i
-                                        class="material-icons">format_bold</i></button>
-                                <button id="btn-italic" class="btn-tool" title="斜体 (Italic)"><i
-                                        class="material-icons">format_italic</i></button>
-                                <button id="btn-underline" class="btn-tool" title="下線 (Underline)"><i
-                                        class="material-icons">format_underlined</i></button>
+                                <div class="divider"></div>
+
+                                <!-- Text Style -->
+                                <div class="toolbar-group">
+                                    <button id="btn-bold" class="btn-tool" title="太字 (Bold)"><i
+                                            class="material-icons">format_bold</i></button>
+                                    <button id="btn-italic" class="btn-tool" title="斜体 (Italic)"><i
+                                            class="material-icons">format_italic</i></button>
+                                    <button id="btn-underline" class="btn-tool" title="下線 (Underline)"><i
+                                            class="material-icons">format_underlined</i></button>
+                                </div>
+
+                                <div class="divider"></div>
+
+                                <!-- Alignment -->
+                                <div class="toolbar-group">
+                                    <button id="btn-align-left" class="btn-tool" title="左揃え"><i
+                                            class="material-icons">format_align_left</i></button>
+                                    <button id="btn-align-center" class="btn-tool" title="中央揃え"><i
+                                            class="material-icons">format_align_center</i></button>
+                                    <button id="btn-align-right" class="btn-tool" title="右揃え"><i
+                                            class="material-icons">format_align_right</i></button>
+                                </div>
+
+                                <div class="divider"></div>
                             </div>
-
-                            <div class="divider"></div>
-
-                            <!-- Alignment (Dropdown style but inline for now as requested 'like screenshot') -->
-                            <div class="toolbar-group">
-                                <button id="btn-align-left" class="btn-tool" title="左揃え"><i
-                                        class="material-icons">format_align_left</i></button>
-                                <button id="btn-align-center" class="btn-tool" title="中央揃え"><i
-                                        class="material-icons">format_align_center</i></button>
-                                <button id="btn-align-right" class="btn-tool" title="右揃え"><i
-                                        class="material-icons">format_align_right</i></button>
-                            </div>
-
-                            <div class="divider"></div>
 
                             <!-- Colors -->
                             <div class="toolbar-group" style="position: relative;">
