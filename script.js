@@ -140,6 +140,13 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.className = 'btn is-primary';
             actionButtonsContainer.appendChild(btn);
         } else if (currentMode === 'edit') {
+            const btnAdd = createButton('add_to_photos', 'PDFを追加', () => {
+                document.getElementById('file-input').click();
+            });
+            btnAdd.className = 'btn is-outlined';
+            btnAdd.style.marginRight = '10px';
+            actionButtonsContainer.appendChild(btnAdd);
+
             const btn = createButton('save', '編集結果を保存', () => saveHandler());
             btn.className = 'btn is-primary';
             actionButtonsContainer.appendChild(btn);
@@ -282,6 +289,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentMode === 'edit') {
             // For Edit Mode, we only take the FIRST file
             renderGrid(); // Empty grid or just skip
+
+            // ドロップゾーンを隠す
+            dropZone.classList.add('hidden');
 
             // Setup Editor with the first loaded file
             if (loadedFiles.length > 0) {
