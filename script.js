@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentEditorPageIndex = 0;
     let currentEditorPdfJsDoc = null;
     let currentEditorFile = null; // The file object being edited
+    // 編集モード用のページ管理マップ（どのファイルの何ページ目か）
+    // 構造: { fileIndex: number, pageIndex: number, pdfJsDoc: object }
+    let editorPageMap = [];
 
     // --- Mode Selection Logic ---
     document.querySelectorAll('.mode-card').forEach(card => {
@@ -285,33 +288,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         if (currentMode === 'edit') {
-            // For Edit Mode, we only take the FIRST file
-            renderGrid(); // Empty grid or just skip
-
-            // ドロップゾーンを隠す
             dropZone.classList.add('hidden');
+            previewArea.classList.add('hidden');
+            editorArea.classList.remove('hidden');
 
-            // Setup Editor with the first loaded file
-            if (loadedFiles.length > 0) {
-                const file = loadedFiles[0];
-                if (file.type !== 'pdf') {
-                    alert("編集モードはPDFのみ対応しています。");
-                    return;
-                }
-                currentEditorFile = file;
-                currentEditorPdfJsDoc = file.pdfJsDoc;
+            // ★修正点1: ツールバーのコントロールを再表示（バグ修正）
+            editorControls.classList.remove('hidden');
 
-                // Show Editor Area, Hide Grid
-                previewArea.classList.add('hidden');
-                editorArea.classList.remove('hidden');
+            // 読み込まれたファイルのうち、最新のものを取得（既存への追記用）
+            // ★修正点2: loadedFilesの末尾（最新）を取得して追加処理へ回す
+            const newFileIndex = loadedFiles.length - 1;
+            const file = loadedFiles[newFileIndex];
 
-                // Init Editor
-                initializeEditor();
-                editorPages = [];
-                loadEditorPage(0);
+            if (file.type !== 'pdf') {
+                alert("編集モードはPDFのみ対応しています。");
+                return;
             }
+
+            // ページマップに追加する処理（新規関数）
+            await addPagesToEditor(newFileIndex);
         } else {
             renderGrid();
+        }
+    }
+
+    async function addPagesToEditor(fileIndex) {
+        const file = loadedFiles[fileIndex];
+        const doc = file.pdfJsDoc;
+
+        for (let i = 0; i < doc.numPages; i++) {
+            editorPageMap.push({
+                fileIndex: fileIndex,
+                pageIndex: i, // PDF内のページ番号(0始まり)
+                pdfJsDoc: doc
+            });
+        }
+
+        // 初回ロード時のみエディタ初期化
+        if (!fabricCanvas) {
+            initializeEditor();
+            await loadEditorPage(0);
+        } else {
+            // 追加ロード時はサイドバーのみ更新
+            renderEditorSidebar();
         }
     }
 
@@ -1437,16 +1456,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // btnDeleteObj Listener removed
 
     async function loadEditorPage(index) {
+        // 現在のページ状態を保存
         if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
             const json = fabricCanvas.toJSON(['id', 'selectable']);
             delete json.backgroundImage;
             editorPages[currentEditorPageIndex].fabricJSON = json;
         }
 
-        currentEditorPageIndex = index;
-        const page = await currentEditorPdfJsDoc.getPage(index + 1);
-        const viewport = page.getViewport({ scale: 1.5 });
+        // インデックス範囲チェック
+        if (index < 0 || index >= editorPageMap.length) return;
 
+        currentEditorPageIndex = index;
+
+        // ★ここを変更: マップから情報を取得
+        const pageInfo = editorPageMap[index];
+        const page = await pageInfo.pdfJsDoc.getPage(pageInfo.pageIndex + 1); // getPageは1始まり
+
+        // viewport作成、キャンバスサイズ変更
+        const viewport = page.getViewport({ scale: 1.5 });
         fabricCanvas.setWidth(viewport.width);
         fabricCanvas.setHeight(viewport.height);
         fabricCanvas.clear();
@@ -1471,28 +1498,27 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
             URL.revokeObjectURL(imgEl.src);
 
+            // オブジェクトの復元
             if (!editorPages[index]) {
                 editorPages[index] = { pageIndex: index, fabricJSON: null };
-            } else if (editorPages[index].fabricJSON) {
-                if (editorPages[index].fabricJSON.objects.length > 0) {
-                    fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
-                        fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
-                        // 履歴リセット＆初期状態保存
-                        historyStack = []; historyIndex = -1; saveHistory();
-                    });
-                } else {
-                    // 空の場合も初期保存
+            }
+            if (editorPages[index].fabricJSON) {
+                fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
+                    fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
                     historyStack = []; historyIndex = -1; saveHistory();
-                }
+                });
             } else {
-                // 初回ロード等
                 historyStack = []; historyIndex = -1; saveHistory();
             }
         };
 
-        pageIndicator.textContent = `Page ${index + 1} / ${currentEditorPdfJsDoc.numPages}`;
+        // ページインジケータ更新
+        pageIndicator.textContent = `Page ${index + 1} / ${editorPageMap.length}`; // 分母をMapの長さに
         btnPrevPage.disabled = index === 0;
-        btnNextPage.disabled = index === currentEditorPdfJsDoc.numPages - 1;
+        btnNextPage.disabled = index === editorPageMap.length - 1;
+
+        // サイドバーの選択状態更新
+        updateSidebarSelection(index);
     }
 
     btnPrevPage.addEventListener('click', () => {
@@ -1502,7 +1528,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     btnNextPage.addEventListener('click', () => {
-        if (currentEditorPageIndex < currentEditorPdfJsDoc.numPages - 1) {
+        if (currentEditorPageIndex < editorPageMap.length - 1) {
             loadEditorPage(currentEditorPageIndex + 1);
         }
     });
