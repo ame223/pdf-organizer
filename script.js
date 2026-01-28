@@ -1534,16 +1534,64 @@ document.addEventListener('DOMContentLoaded', () => {
         currentEditorTool = 'select';
         fabricCanvas.defaultCursor = 'default';
 
-        btnAddText.classList.remove('is-primary');
-        btnAddText.classList.add('is-outlined');
-        btnAddRect.classList.remove('is-primary');
-        btnAddRect.classList.add('is-outlined');
-        btnAddCircle.classList.remove('is-primary');
-        btnAddCircle.classList.add('is-outlined');
-        btnAddTriangle.classList.remove('is-primary');
-        btnAddTriangle.classList.add('is-outlined');
+        resetToolButtons();
     }
+
+    // --- 新しい図形メニューの制御 ---
+    const btnAddShapeTrigger = document.getElementById('btn-add-shape-trigger');
+    const popupAddShape = document.getElementById('popup-add-shape');
+    const btnShapeRect = document.getElementById('btn-shape-rect');
+    const btnShapeCircle = document.getElementById('btn-shape-circle');
+    const btnShapeTriangle = document.getElementById('btn-shape-triangle');
+
+    // テキスト追加ボタンのイベント再設定
+    // 画面外クリックで閉じる
+    document.addEventListener('click', (e) => {
+        if (popupAddShape && !e.target.closest('#btn-add-shape-trigger')) {
+            popupAddShape.classList.add('hidden');
+        }
+    });
+
+    // ツール選択ヘルパー
+    function selectShapeTool(toolType) {
+        currentEditorTool = toolType;
+        if (fabricCanvas) {
+            fabricCanvas.defaultCursor = 'crosshair';
+            fabricCanvas.discardActiveObject();
+            fabricCanvas.renderAll();
+        }
+        if (popupAddShape) popupAddShape.classList.add('hidden');
+
+        // 親ボタンの見た目を更新（選択中状態に）
+        resetToolButtons();
+        if (btnAddShapeTrigger) {
+            btnAddShapeTrigger.classList.remove('is-outlined');
+            btnAddShapeTrigger.classList.add('is-primary');
+        }
+    }
+
+    function resetToolButtons() {
+        // テキストボタンのリセット
+        const txtBtn = document.getElementById('btn-add-text');
+        if (txtBtn) {
+            txtBtn.classList.remove('is-primary');
+            txtBtn.classList.add('is-outlined');
+        }
+        // 図形ボタンのリセット
+        const shapeBtn = document.getElementById('btn-add-shape-trigger');
+        if (shapeBtn) {
+            shapeBtn.classList.remove('is-primary');
+            shapeBtn.classList.add('is-outlined');
+        }
+    }
+
+    // 各図形メニューのイベント
+    if (btnShapeRect) btnShapeRect.addEventListener('click', () => selectShapeTool('rect'));
+    if (btnShapeCircle) btnShapeCircle.addEventListener('click', () => selectShapeTool('circle'));
+    if (btnShapeTriangle) btnShapeTriangle.addEventListener('click', () => selectShapeTool('triangle'));
+
     // --- UI Event Listeners ---
+
 
     // --- UI Event Listeners ---
 
@@ -2040,12 +2088,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const newBtnZoomOut = resetElement('btn-zoom-out');
         const newBtnPrev = resetElement('btn-prev-page');
         const newBtnNext = resetElement('btn-next-page');
-        const newBtnAddText = resetElement('btn-add-text');
-        const newBtnAddRect = resetElement('btn-add-rect');
-        const newBtnAddCircle = resetElement('btn-add-circle');
-        const newBtnAddTriangle = resetElement('btn-add-triangle');
-        const newBtnDeleteObj = resetElement('btn-delete-obj');
-
 
         // ズーム表示の更新関数
         const updateZoomDisplay = () => {

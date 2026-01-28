@@ -90,18 +90,30 @@
                         style="padding: 5px 10px; font-size: 0.8rem;">
                         <i class="material-icons" style="font-size: 18px;">title</i> テキスト
                     </button>
-                    <button id="btn-add-rect" class="btn is-outlined" title="四角形追加"
-                        style="padding: 5px 10px; font-size: 0.8rem;">
-                        <i class="material-icons" style="font-size: 18px;">crop_square</i> 四角
-                    </button>
-                    <button id="btn-add-circle" class="btn is-outlined" title="円追加"
-                        style="padding: 5px 10px; font-size: 0.8rem;">
-                        <i class="material-icons" style="font-size: 18px;">circle</i> 丸
-                    </button>
-                    <button id="btn-add-triangle" class="btn is-outlined" title="三角形追加"
-                        style="padding: 5px 10px; font-size: 0.8rem;">
-                        <i class="material-icons" style="font-size: 18px;">change_history</i> 三角
-                    </button>
+
+                    <div style="position: relative;">
+                        <button id="btn-add-shape-trigger" class="btn is-outlined" title="図形を追加"
+                            style="padding: 5px 10px; font-size: 0.8rem;">
+                            <i class="material-icons" style="font-size: 18px;">category</i> 図形 <i class="material-icons"
+                                style="font-size: 14px;">arrow_drop_down</i>
+                        </button>
+
+                        <div id="popup-add-shape" class="popup-panel hidden"
+                            style="top: 100%; bottom: auto; left: 0; transform: none; margin-top: 5px; min-width: 120px; padding: 5px 0;">
+                            <button id="btn-shape-rect" class="btn-menu-item"
+                                style="width: 100%; text-align: left; padding: 8px 12px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #333;">
+                                <i class="material-icons" style="font-size: 18px;">crop_square</i> 四角
+                            </button>
+                            <button id="btn-shape-circle" class="btn-menu-item"
+                                style="width: 100%; text-align: left; padding: 8px 12px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #333;">
+                                <i class="material-icons" style="font-size: 18px;">circle</i> 丸
+                            </button>
+                            <button id="btn-shape-triangle" class="btn-menu-item"
+                                style="width: 100%; text-align: left; padding: 8px 12px; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; color: #333;">
+                                <i class="material-icons" style="font-size: 18px;">change_history</i> 三角
+                            </button>
+                        </div>
+                    </div>
 
                     <div style="width: 1px; height: 24px; background: #ccc; margin: 0 5px;"></div>
 
