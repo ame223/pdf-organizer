@@ -2113,14 +2113,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
             pdfDoc.registerFontkit(fontkit);
 
-            // ★変更点: Google Fonts (via jsDelivr) の WOFF2 形式を使用 (軽量・高速)
-            const fontUrlReg = 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-400-normal.woff2';
-            const fontUrlBold = 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-700-normal.woff2';
+            // ★変更: 軽量化のため、CJK(全アジア版/16MB)ではなく、JP(日本専用版/約4MB)のTTFを使用
+            // Google Fontsの公式リポジトリから安定したTTFファイルを読み込む
+            const fontUrlReg = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansJP/NotoSansJP-Regular.ttf';
+            const fontUrlBold = 'https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansJP/NotoSansJP-Bold.ttf';
 
             let fontRegular = null;
             let fontBold = null;
 
-            // タイムアウト付きフェッチ関数 (3秒で諦める)
+            // タイムアウト付きフェッチ関数（サイズが小さくなったのでタイムアウトは10秒に設定）
             const fetchWithTimeout = (url, ms) => {
                 const controller = new AbortController();
                 const id = setTimeout(() => controller.abort(), ms);
@@ -2133,19 +2134,19 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                console.log("Downloading fonts (WOFF2)...");
+                console.log("Downloading fonts (JP TTF)...");
                 // 並列ダウンロード開始
                 const [bytesReg, bytesBold] = await Promise.all([
-                    fetchWithTimeout(fontUrlReg, 3000),
-                    fetchWithTimeout(fontUrlBold, 3000).catch(e => null) // 太字は失敗しても無視
+                    fetchWithTimeout(fontUrlReg, 10000),
+                    fetchWithTimeout(fontUrlBold, 10000).catch(e => null)
                 ]);
 
                 if (bytesReg) fontRegular = await pdfDoc.embedFont(bytesReg);
                 if (bytesBold) fontBold = await pdfDoc.embedFont(bytesBold);
 
             } catch (e) {
-                console.warn("Font download failed or timed out. Using standard font fallback.", e);
-                // アラートは出さずに標準フォントで続行
+                console.warn("Font download failed.", e);
+                alert("日本語フォントの読み込みに失敗しました。標準フォントで保存します。");
             }
 
             // --- 4. ページ描画ループ ---
