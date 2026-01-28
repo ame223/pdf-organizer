@@ -1128,40 +1128,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ★重要: スケーリング時の高さ調整ロジック
             // ★修正: テキストボックスのスケーリング（位置ズレ防止・はみ出し防止版）
+            // ★修正: テキストボックスのスケーリング（縮小可能・位置ズレ防止版）
             fabricCanvas.on('object:scaling', (e) => {
                 const obj = e.target;
                 if (obj.type === 'textbox') {
-                    // 1. 操作中のハンドル（コーナー）を取得
-                    // e.transform.corner が 'mb' (下) や 'mt' (上) などを返す
                     const corner = e.transform.corner;
 
-                    // 2. 現在の実際のサイズ（スケール込み）を計算
                     const scaledWidth = obj.width * obj.scaleX;
                     const scaledHeight = obj.height * obj.scaleY;
 
-                    // 3. テキストが収まる最小高さを計算（はみ出し防止）
+                    // ★修正: リサイズ中は「現在の枠の高さ」に縛られないように一時的に0にする
+                    // これにより、純粋な「テキストの高さ」だけを最小値として取得できる
+                    const savedBoxHeight = obj.boxHeight;
+                    obj.boxHeight = 0;
                     const minHeight = obj.calcTextHeight();
+                    obj.boxHeight = savedBoxHeight; // 計算が終わったら念のため戻す
 
-                    // 4. 新しいサイズを決定
-                    const newWidth = Math.max(scaledWidth, 20); // 最小幅制限
-                    const newHeight = Math.max(scaledHeight, minHeight); // テキストより小さくしない
+                    const newWidth = Math.max(scaledWidth, 20);
+                    // 最小値(minHeight)は「中の文字の高さ」になるため、それ以上であれば自由に縮小可能になる
+                    const newHeight = Math.max(scaledHeight, minHeight);
 
-                    // 5. 【重要】位置ズレを防ぐためのアンカー（基準点）決定
-                    // 上側のハンドル('mt', 'tr', 'tl')を操作中は「下辺(bottom)」を固定
-                    // それ以外（下側や左右）を操作中は「上辺(top)」を固定
+                    // 位置ズレ防止のアンカー決定
                     const anchorY = (['mt', 'tr', 'tl'].includes(corner)) ? 'bottom' : 'top';
                     const anchorPoint = obj.getPointByOrigin('left', anchorY);
 
-                    // 6. プロパティを適用（スケールを1にリセット）
                     obj.set({
                         width: newWidth,
                         height: newHeight,
-                        boxHeight: newHeight,
+                        boxHeight: newHeight, // 新しい高さを確定
                         scaleX: 1,
                         scaleY: 1
                     });
 
-                    // 7. 保存しておいた基準点に合わせて位置を戻す
                     obj.setPositionByOrigin(anchorPoint, 'left', anchorY);
                 }
             });
