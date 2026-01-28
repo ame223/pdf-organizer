@@ -1789,14 +1789,16 @@ document.addEventListener('DOMContentLoaded', () => {
         fabricCanvas.renderAll();
     }
 
-    floatBtnDelete.addEventListener('click', () => {
-        const activeObj = fabricCanvas.getActiveObject();
-        if (activeObj) {
-            fabricCanvas.remove(activeObj);
-            fabricCanvas.discardActiveObject();
-            hideFloatingToolbar();
-        }
-    });
+    if (btnDeleteObj) {
+        btnDeleteObj.addEventListener('click', () => {
+            const activeObj = fabricCanvas.getActiveObject();
+            if (activeObj) {
+                fabricCanvas.remove(activeObj);
+                fabricCanvas.discardActiveObject();
+                hideFloatingToolbar();
+            }
+        });
+    }
 
     // Sidebar Color Picker Sync removed
 
