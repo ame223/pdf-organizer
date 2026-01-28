@@ -71,15 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnUndo = document.getElementById('btn-undo');
     const btnRedo = document.getElementById('btn-redo');
 
-    // Border Color Elements (New)
-    const wrapperBorderColor = document.getElementById('wrapper-border-color');
-    const btnBorderColorTrigger = document.getElementById('btn-border-color-trigger');
-    const popupBorderColor = document.getElementById('popup-border-color');
-    const floatBorderColor = document.getElementById('float-border-color');
-    const indicatorBorderColor = document.getElementById('indicator-border-color');
 
-    // Fabric overrides moved to initializeEditor to ensure safety
-    let fabricOverridesApplied = false;
+
+
 
     // --- State ---
     let currentMode = null;
@@ -1075,19 +1069,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     return Math.max(textHeight, this.boxHeight || 0);
                 };
 
-                fabric.Textbox.prototype._renderBackground = function (ctx) {
-                    // Render Background
-                    if (this.backgroundColor) {
-                        ctx.fillStyle = this.backgroundColor;
-                        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
-                    }
-                    // Render Border
-                    if (this.boxBorderWidth > 0) {
-                        ctx.strokeStyle = this.boxBorderColor || '#000000';
-                        ctx.lineWidth = this.boxBorderWidth;
-                        ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
-                    }
-                };
                 fabricOverridesApplied = true;
             }
 
@@ -1315,9 +1296,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (popupBgColor && !e.target.closest('#btn-bg-color-trigger') && !e.target.closest('#popup-bg-color')) {
             popupBgColor.classList.add('hidden');
         }
-        if (popupBorderColor && !e.target.closest('#btn-border-color-trigger') && !e.target.closest('#popup-border-color')) {
-            popupBorderColor.classList.add('hidden');
-        }
     });
 
     function onSelectionChanged(e) {
@@ -1369,22 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
             floatStrokeWidth.value = currentVal;
         }
 
-        // テキスト専用: 枠線の色ボタンの表示
-        if (wrapperBorderColor) {
-            // style.display = 'none' ではなく、クラス操作やより強力な表示強制を行う
-            if (isText) {
-                wrapperBorderColor.style.display = 'flex';
-                wrapperBorderColor.classList.remove('hidden');
-            } else {
-                wrapperBorderColor.style.display = 'none';
-                wrapperBorderColor.classList.add('hidden');
-            }
 
-            if (isText && indicatorBorderColor) {
-                indicatorBorderColor.style.backgroundColor = obj.boxBorderColor || 'transparent';
-                if (obj.boxBorderWidth === 0) indicatorBorderColor.style.backgroundColor = 'transparent';
-            }
-        }
 
         // --- Sync Values ---
         // Font Size (Text Only)
@@ -1489,7 +1452,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (floatingToolbar) floatingToolbar.classList.add('hidden');
         if (popupTextColor) popupTextColor.classList.add('hidden');
         if (popupBgColor) popupBgColor.classList.add('hidden');
-        if (popupBorderColor) popupBorderColor.classList.add('hidden');
     }
 
     function updateToolbarPosition() {
@@ -1522,7 +1484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ツールバーが画面の上の方(300px以内)にある場合、ポップアップを下に出す
         const shouldOpenDown = top < 300;
 
-        [popupTextColor, popupBgColor, popupBorderColor].forEach(popup => {
+        [popupTextColor, popupBgColor].forEach(popup => {
             if (popup) {
                 if (shouldOpenDown) {
                     popup.classList.add('opens-down');
@@ -1596,14 +1558,12 @@ document.addEventListener('DOMContentLoaded', () => {
     btnTextColorTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
         popupBgColor.classList.add('hidden');
-        if (popupBorderColor) popupBorderColor.classList.add('hidden');
         popupTextColor.classList.toggle('hidden');
     });
 
     btnBgColorTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
         popupTextColor.classList.add('hidden');
-        if (popupBorderColor) popupBorderColor.classList.add('hidden');
         popupBgColor.classList.toggle('hidden');
     });
 
