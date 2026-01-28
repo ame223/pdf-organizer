@@ -1811,18 +1811,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnDeleteObj) {
-        // 1. フォーカス奪取を防ぐ
+        // 既存のリスナーとの重複を避けるため、cloneNodeでリセット（推奨）またはリスナーを上書きする形で実装
+        // ※ここでは既存コードを以下のブロックに置き換える想定です
+
         btnDeleteObj.addEventListener('mousedown', (e) => {
+            // 1. フォーカス移動とイベント伝播を確実に止める
             e.preventDefault();
             e.stopPropagation();
-        });
 
-        // 2. 削除実行処理
-        btnDeleteObj.addEventListener('click', () => {
-            const activeObj = fabricCanvas.getActiveObject();
-            if (activeObj) {
-                fabricCanvas.remove(activeObj);
+            // 2. 選択されている全オブジェクトを取得（単一・複数対応）
+            const activeObjects = fabricCanvas.getActiveObjects();
+
+            if (activeObjects.length) {
+                // 3. 選択状態を解除してから削除ループ
                 fabricCanvas.discardActiveObject();
+
+                activeObjects.forEach((obj) => {
+                    fabricCanvas.remove(obj);
+                });
+
+                // 4. UI更新と履歴保存
                 hideFloatingToolbar();
                 saveHistory();
             }
