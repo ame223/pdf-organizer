@@ -94,6 +94,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const bgOpacity = document.getElementById('bg-opacity');
     const indicatorBgColor = document.getElementById('indicator-bg-color');
 
+    // --- 追加: 定義漏れしていたボーダー関連の要素 ---
+    const floatBorderColor = document.getElementById('float-border-color');
+    const indicatorBorderColor = document.getElementById('indicator-border-color');
+    const popupBorderColor = document.getElementById('popup-border-color');
+    const btnBorderColorTrigger = document.getElementById('btn-border-color-trigger');
+
     // Shape Menu Elements
     const btnAddShapeTrigger = document.getElementById('btn-add-shape-trigger');
     const popupAddShape = document.getElementById('popup-add-shape');
@@ -1811,30 +1817,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (btnDeleteObj) {
-        // 既存のリスナーとの重複を避けるため、cloneNodeでリセット（推奨）またはリスナーを上書きする形で実装
-        // ※ここでは既存コードを以下のブロックに置き換える想定です
+// 1. ボタン要素を複製し、古いイベントリスナーを全て強制削除する
+const newBtn = btnDeleteObj.cloneNode(true);
+if (btnDeleteObj.parentNode) {
+    btnDeleteObj.parentNode.replaceChild(newBtn, btnDeleteObj);
+}
 
-        btnDeleteObj.addEventListener('mousedown', (e) => {
-            // 1. フォーカス移動とイベント伝播を確実に止める
-            e.preventDefault();
-            e.stopPropagation();
+// 2. 新しいボタンに mousedown イベントを設定（クリック競合を回避）
+newBtn.addEventListener('mousedown', (e) => {
+    // フォーカス移動とイベント伝播を確実に止める
+    e.preventDefault();
+    e.stopPropagation();
 
-            // 2. 選択されている全オブジェクトを取得（単一・複数対応）
-            const activeObjects = fabricCanvas.getActiveObjects();
+    if (!fabricCanvas) return;
 
-            if (activeObjects.length) {
-                // 3. 選択状態を解除してから削除ループ
-                fabricCanvas.discardActiveObject();
+    // 選択されている全オブジェクトを取得（単一・複数対応）
+    const activeObjects = fabricCanvas.getActiveObjects();
 
-                activeObjects.forEach((obj) => {
-                    fabricCanvas.remove(obj);
-                });
+    if (activeObjects && activeObjects.length > 0) {
+        // 3. 処理前に選択状態を解除（エラー防止）
+        fabricCanvas.discardActiveObject();
 
-                // 4. UI更新と履歴保存
-                hideFloatingToolbar();
-                saveHistory();
-            }
+        // 4. オブジェクトを削除
+        activeObjects.forEach((obj) => {
+            fabricCanvas.remove(obj);
         });
+
+        // 5. 画面更新と履歴保存
+        fabricCanvas.requestRenderAll();
+        hideFloatingToolbar();
+        saveHistory();
+    }
+});
     }
 
     // 他のツールボタンにも同様の処置を適用
