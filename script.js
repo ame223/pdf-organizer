@@ -370,6 +370,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (files.length === 0) return;
 
         toolbar.classList.remove('hidden');
+        if (currentMode === 'edit') {
+            toolbar.classList.add('hidden'); // Hide bottom toolbar in edit mode
+        }
         dropZone.classList.add('compact');
 
         for (const file of files) {
@@ -399,6 +402,8 @@ document.addEventListener('DOMContentLoaded', () => {
             dropZone.classList.add('hidden');
             previewArea.classList.add('hidden');
             editorArea.classList.remove('hidden');
+            editorArea.style.display = 'flex'; // Ensure flex layout
+
 
             // 読み込まれたファイルのうち、最新のものを取得（既存への追記用）
             // ★修正点2: loadedFilesの末尾（最新）を取得して追加処理へ回す
