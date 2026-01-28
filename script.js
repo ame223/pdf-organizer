@@ -366,8 +366,27 @@ document.addEventListener('DOMContentLoaded', () => {
             initializeEditor();
             await loadEditorPage(0);
         } else {
-            // 追加ロード時はサイドバーのみ更新
-            renderEditorSidebar();
+            // 追加ロード時
+            renderEditorSidebar(); // サイドバー更新
+
+            // ★以下を追加：ページインジケータとボタン状態の更新
+            const totalPages = editorPageMap.length;
+
+            // 表示の更新 (例: "Page 1 / 4")
+            if (pageIndicator) {
+                pageIndicator.textContent = `Page ${currentEditorPageIndex + 1} / ${totalPages}`;
+            }
+
+            // 「次へ」ボタンのロック解除判定
+            // 現在のページが最終ページでなければ、次へボタンを有効化する
+            const btnNext = document.getElementById('btn-next-page');
+            if (btnNext) {
+                if (currentEditorPageIndex < totalPages - 1) {
+                    btnNext.disabled = false;
+                } else {
+                    btnNext.disabled = true;
+                }
+            }
         }
     }
 
