@@ -1360,8 +1360,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toolbarTextTools) toolbarTextTools.style.display = 'none';
         }
 
-        // 共通: 太さ (Stroke Width / Box Border Width)
-        if (floatStrokeWidth) {
+        if (floatStrokeWidth && floatStrokeWidth.parentElement) {
+            floatStrokeWidth.parentElement.style.display = 'flex'; // Force visibility
+            floatStrokeWidth.parentElement.style.alignItems = 'center';
             if (isText) {
                 floatStrokeWidth.value = obj.boxBorderWidth || 0;
             } else {
@@ -1371,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // テキスト専用: 枠線の色ボタンの表示
         if (wrapperBorderColor) {
-            wrapperBorderColor.style.display = isText ? 'flex' : 'none';
+            wrapperBorderColor.style.display = isText ? 'flex' : 'none'; // Ensure check for text
             if (isText && indicatorBorderColor) {
                 indicatorBorderColor.style.backgroundColor = obj.boxBorderColor || 'transparent';
                 if (obj.boxBorderWidth === 0) indicatorBorderColor.style.backgroundColor = 'transparent';
