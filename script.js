@@ -78,44 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const floatBorderColor = document.getElementById('float-border-color');
     const indicatorBorderColor = document.getElementById('indicator-border-color');
 
-    // --- Fabric.js Extension: Textbox Box Border & Height ---
-    if (typeof fabric !== 'undefined') {
-        // ★重要: テキストボックスの高さ計算をオーバーライドして、boxHeight（固定高さ）を優先する
-        const originalCalcTextHeight = fabric.Textbox.prototype.calcTextHeight;
-        fabric.Textbox.prototype.calcTextHeight = function () {
-            const textHeight = originalCalcTextHeight.call(this);
-            // boxHeightが設定されていれば、その高さを最低値として使用する
-            return Math.max(textHeight, this.boxHeight || 0);
-        };
-
-        fabric.Textbox.prototype._renderBackground = function (ctx) {
-            if (this.backgroundColor) {
-                ctx.fillStyle = this.backgroundColor;
-                ctx.fillRect(
-                    -this.width / 2,
-                    -this.height / 2,
-                    this.width,
-                    this.height
-                );
-            }
-            // ボックスの枠線描画 (Render border regardless of background color presence)
-            if (this.boxBorderWidth > 0) {
-                ctx.strokeStyle = this.boxBorderColor || '#000000';
-                ctx.lineWidth = this.boxBorderWidth;
-                ctx.strokeRect(
-                    -this.width / 2,
-                    -this.height / 2,
-                    this.width,
-                    this.height
-                );
-            }
-        };
-
-        // Ensure render happens even if backgroundColor is null but border exists
-        // (Override render usually risky, but we can ensure backgroundColor is never null in our app logic)
-        // Alternatively, we rely on the app setting transparent bg.
-    }
-
+    // Fabric overrides moved to initializeEditor to ensure safety
+    let fabricOverridesApplied = false;
 
     // --- State ---
     let currentMode = null;
@@ -1097,6 +1061,31 @@ document.addEventListener('DOMContentLoaded', () => {
     function initializeEditor() {
         if (!fabricCanvas) {
             fabricCanvas = new fabric.Canvas('fabric-canvas');
+
+            // --- Apply Overrides Safe ---
+            if (!fabricOverridesApplied) {
+                const originalCalcTextHeight = fabric.Textbox.prototype.calcTextHeight;
+                fabric.Textbox.prototype.calcTextHeight = function () {
+                    const textHeight = originalCalcTextHeight.call(this);
+                    return Math.max(textHeight, this.boxHeight || 0);
+                };
+
+                fabric.Textbox.prototype._renderBackground = function (ctx) {
+                    // Render Background
+                    if (this.backgroundColor) {
+                        ctx.fillStyle = this.backgroundColor;
+                        ctx.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                    }
+                    // Render Border
+                    if (this.boxBorderWidth > 0) {
+                        ctx.strokeStyle = this.boxBorderColor || '#000000';
+                        ctx.lineWidth = this.boxBorderWidth;
+                        ctx.strokeRect(-this.width / 2, -this.height / 2, this.width, this.height);
+                    }
+                };
+                fabricOverridesApplied = true;
+            }
+
 
             fabricCanvas.on('selection:created', onSelectionChanged);
             fabricCanvas.on('selection:updated', onSelectionChanged);
