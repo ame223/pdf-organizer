@@ -484,6 +484,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const newFileIndex = loadedFiles.length - 1;
             const file = loadedFiles[newFileIndex];
 
+            // ★修正: 保存処理のために、現在の編集ファイルをグローバル変数にセットする
+            currentEditorFile = file;
+
             if (file.type !== 'pdf') {
                 alert("編集モードはPDFのみ対応しています。");
                 return;
