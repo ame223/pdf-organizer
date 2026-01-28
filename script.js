@@ -1800,43 +1800,94 @@ document.addEventListener('DOMContentLoaded', () => {
         ) : undefined;
     }
 
-    // --- Zoom Logic ---
-    function updateZoomDisplay() {
-        if (!zoomLevelText || !canvasWrapper) return;
+    // --- ズーム機能とページ送りの修正 ---
 
-        // 表示倍率テキスト更新
-        zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+    // 既存のイベントリスナーが競合しないように、ボタン要素をリセット（再取得・複製）して再設定します
+    function setupControlButtons() {
+        const resetElement = (id) => {
+            const el = document.getElementById(id);
+            if (el) {
+                const newEl = el.cloneNode(true);
+                el.parentNode.replaceChild(newEl, el);
+                return newEl;
+            }
+            return null;
+        };
 
-        // CSS Transformで拡大縮小
-        // 起点を中央上に設定して自然なズームにする
-        canvasWrapper.style.transformOrigin = 'top center';
-        canvasWrapper.style.transform = `scale(${currentZoomScale})`;
+        const newBtnZoomIn = resetElement('btn-zoom-in');
+        const newBtnZoomOut = resetElement('btn-zoom-out');
+        const newBtnPrev = resetElement('btn-prev-page');
+        const newBtnNext = resetElement('btn-next-page');
 
-        // 拡大時に下の要素と被らないようにマージンを調整（簡易対応）
-        if (currentZoomScale > 1) {
-            canvasWrapper.style.marginTop = `${(currentZoomScale - 1) * 20}px`;
-            canvasWrapper.style.marginBottom = `${(currentZoomScale - 1) * 20}px`;
-        } else {
-            canvasWrapper.style.marginTop = '0';
-            canvasWrapper.style.marginBottom = '0';
+        // ズーム表示の更新関数
+        const updateZoomDisplay = () => {
+            if (!zoomLevelText || !canvasWrapper) return;
+
+            // 浮動小数点の誤差対策
+            currentZoomScale = Math.round(currentZoomScale * 1000) / 1000;
+
+            // 表示更新
+            zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+
+            // スタイル適用
+            canvasWrapper.style.transformOrigin = 'top center';
+            canvasWrapper.style.transform = `scale(${currentZoomScale})`;
+
+            // 拡大時の余白調整
+            if (currentZoomScale > 1) {
+                const margin = (currentZoomScale - 1) * 300; // 縦に見切れないよう余白を確保
+                canvasWrapper.style.marginTop = `${margin}px`;
+                canvasWrapper.style.marginBottom = `${margin}px`;
+            } else {
+                canvasWrapper.style.marginTop = '0';
+                canvasWrapper.style.marginBottom = '0';
+            }
+        };
+
+        // ズームイン（5%刻み）
+        if (newBtnZoomIn) {
+            newBtnZoomIn.addEventListener('click', () => {
+                if (currentZoomScale < 3.0) {
+                    currentZoomScale += 0.05;
+                    updateZoomDisplay();
+                }
+            });
         }
+
+        // ズームアウト（5%刻み）
+        if (newBtnZoomOut) {
+            newBtnZoomOut.addEventListener('click', () => {
+                if (currentZoomScale > 0.3) {
+                    currentZoomScale -= 0.05;
+                    updateZoomDisplay();
+                }
+            });
+        }
+
+        // 前へボタン
+        if (newBtnPrev) {
+            newBtnPrev.addEventListener('click', () => {
+                if (currentEditorPageIndex > 0) {
+                    loadEditorPage(currentEditorPageIndex - 1);
+                }
+            });
+        }
+
+        // 次へボタン
+        if (newBtnNext) {
+            newBtnNext.addEventListener('click', () => {
+                const maxPage = editorPageMap.length > 0 ? editorPageMap.length : 1;
+                if (currentEditorPageIndex < maxPage - 1) {
+                    loadEditorPage(currentEditorPageIndex + 1);
+                }
+            });
+        }
+
+        // 初回ズーム表示更新
+        updateZoomDisplay();
     }
 
-    // ボタンイベントの設定
-    if (btnZoomIn && btnZoomOut) {
-        btnZoomIn.addEventListener('click', () => {
-            if (currentZoomScale < 3.0) { // 最大300%
-                currentZoomScale += 0.1;
-                updateZoomDisplay();
-            }
-        });
-
-        btnZoomOut.addEventListener('click', () => {
-            if (currentZoomScale > 0.3) { // 最小30%
-                currentZoomScale -= 0.1;
-                updateZoomDisplay();
-            }
-        });
-    }
+    // 設定を実行
+    setupControlButtons();
 
 });
