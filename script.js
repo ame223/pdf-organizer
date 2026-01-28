@@ -1061,16 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!fabricCanvas) {
             fabricCanvas = new fabric.Canvas('fabric-canvas');
 
-            // --- Apply Overrides Safe ---
-            if (!fabricOverridesApplied) {
-                const originalCalcTextHeight = fabric.Textbox.prototype.calcTextHeight;
-                fabric.Textbox.prototype.calcTextHeight = function () {
-                    const textHeight = originalCalcTextHeight.call(this);
-                    return Math.max(textHeight, this.boxHeight || 0);
-                };
 
-                fabricOverridesApplied = true;
-            }
 
 
             fabricCanvas.on('selection:created', onSelectionChanged);
