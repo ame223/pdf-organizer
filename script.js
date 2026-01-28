@@ -71,6 +71,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnUndo = document.getElementById('btn-undo');
     const btnRedo = document.getElementById('btn-redo');
 
+    // Border Color Elements (New)
+    const wrapperBorderColor = document.getElementById('wrapper-border-color');
+    const btnBorderColorTrigger = document.getElementById('btn-border-color-trigger');
+    const popupBorderColor = document.getElementById('popup-border-color');
+    const floatBorderColor = document.getElementById('float-border-color');
+    const indicatorBorderColor = document.getElementById('indicator-border-color');
+
+    // --- Fabric.js Extension: Textbox Box Border ---
+    if (typeof fabric !== 'undefined') {
+        fabric.Textbox.prototype._renderBackground = function (ctx) {
+            if (this.backgroundColor) {
+                ctx.fillStyle = this.backgroundColor;
+                // 背景描画（元のロジック通り）
+                ctx.fillRect(
+                    -this.width / 2,
+                    -this.height / 2,
+                    this.width,
+                    this.height
+                );
+            }
+            // ボックスの枠線描画 (追加)
+            if (this.boxBorderWidth > 0 && this.boxBorderColor) {
+                ctx.strokeStyle = this.boxBorderColor;
+                ctx.lineWidth = this.boxBorderWidth;
+                ctx.strokeRect(
+                    -this.width / 2,
+                    -this.height / 2,
+                    this.width,
+                    this.height
+                );
+            }
+        };
+    }
+
 
     // --- State ---
     let currentMode = null;
@@ -1065,6 +1099,23 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.on('object:scaling', updateToolbarPosition);
             fabricCanvas.on('object:resizing', updateToolbarPosition);
 
+            // Scaling Event: テキストボックスの場合は文字サイズを変えずに幅だけ変える
+            fabricCanvas.on('object:scaling', (e) => {
+                const obj = e.target;
+                if (obj.type === 'textbox') {
+                    // 現在のスケールに基づいて幅を再計算
+                    const newWidth = obj.width * obj.scaleX;
+
+                    obj.set({
+                        width: newWidth,
+                        scaleX: 1,
+                        scaleY: 1
+                    });
+                    // テキストの折り返し再計算を促すには splitByGrapheme などが必要な場合も
+                }
+            });
+
+
             // Bounds restriction
             fabricCanvas.on('object:moving', (e) => {
                 const obj = e.target;
@@ -1288,23 +1339,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isText) {
             toolbarTextTools.style.display = 'flex';
-            toolbarShapeTools.style.display = 'none';
+            // toolbarShapeTools.style.display = 'none'; // ID removed in index.html update
             // Text values sync handled below
         } else {
             // 図形の場合
             toolbarTextTools.style.display = 'none';
-            toolbarShapeTools.style.display = 'flex';
+            // toolbarShapeTools.style.display = 'flex';
+        }
 
-            // 線の太さをセット
-            if (floatStrokeWidth) floatStrokeWidth.value = obj.strokeWidth || 3;
+        // 共通: 太さ (Stroke Width / Box Border Width)
+        if (floatStrokeWidth) {
+            if (isText) {
+                floatStrokeWidth.value = obj.boxBorderWidth || 0;
+            } else {
+                floatStrokeWidth.value = obj.strokeWidth || 0;
+            }
+        }
+
+        // テキスト専用: 枠線の色ボタンの表示
+        if (wrapperBorderColor) {
+            wrapperBorderColor.style.display = isText ? 'flex' : 'none';
+            if (isText && indicatorBorderColor) {
+                indicatorBorderColor.style.backgroundColor = obj.boxBorderColor || 'transparent';
+                if (obj.boxBorderWidth === 0) indicatorBorderColor.style.backgroundColor = 'transparent';
+            }
         }
 
         // --- Sync Values ---
-
         // Font Size (Text Only)
         if (isText) {
             floatFontSize.parentElement.style.display = 'flex';
             floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
+
+            // ... (rest of sync logic)
+
 
             // Text Formatting State
             btnBold.classList.toggle('active', obj.fontWeight === 'bold');
@@ -1594,15 +1662,64 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Stroke Width
+    // Stroke/Border Width
     floatStrokeWidth.addEventListener('input', (e) => {
         const val = parseInt(e.target.value, 10);
         const activeObj = fabricCanvas.getActiveObject();
-        if (activeObj && ['rect', 'circle', 'triangle'].includes(activeObj.type)) {
-            activeObj.set('strokeWidth', val);
+        if (activeObj) {
+            if (activeObj.type === 'textbox') {
+                activeObj.set('boxBorderWidth', val); // テキストは独自プロパティ
+            } else {
+                activeObj.set('strokeWidth', val);    // 図形は標準プロパティ
+            }
             fabricCanvas.renderAll();
         }
     });
+
+    // 枠線の色変更 (テキスト用)
+    if (floatBorderColor) {
+        floatBorderColor.addEventListener('input', (e) => {
+            const val = e.target.value;
+            const activeObj = fabricCanvas.getActiveObject();
+            if (activeObj && activeObj.type === 'textbox') {
+                activeObj.set('boxBorderColor', val);
+                indicatorBorderColor.style.backgroundColor = val;
+                fabricCanvas.renderAll();
+            }
+        });
+    }
+
+    // 枠線色ポップアップの開閉
+    if (btnBorderColorTrigger) {
+        btnBorderColorTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (popupBorderColor) popupBorderColor.classList.toggle('hidden');
+            // 他を閉じる
+            if (popupTextColor) popupTextColor.classList.add('hidden');
+            if (popupBgColor) popupBgColor.classList.add('hidden');
+        });
+    }
+
+    // 枠線プリセット
+    if (popupBorderColor) {
+        const borderSwatches = popupBorderColor.querySelectorAll('.color-swatch');
+        borderSwatches.forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                const color = swatch.dataset.color;
+                const activeObj = fabricCanvas.getActiveObject();
+                if (activeObj && activeObj.type === 'textbox') {
+                    activeObj.set('boxBorderColor', color);
+                    if (color === 'transparent') {
+                        activeObj.set('boxBorderWidth', 0); // 透明なら太さ0
+                        floatStrokeWidth.value = 0;
+                    }
+                    if (floatBorderColor) floatBorderColor.value = (color === 'transparent') ? '#000000' : color;
+                    if (indicatorBorderColor) indicatorBorderColor.style.backgroundColor = color;
+                    fabricCanvas.renderAll();
+                }
+            });
+        });
+    }
 
     // Text Color Input
     floatTextColor.addEventListener('input', (e) => {
@@ -1833,6 +1950,19 @@ document.addEventListener('DOMContentLoaded', () => {
                                         opacity: opacity
                                     });
                                 }
+                            }
+
+                            // Box Border (New)
+                            if (obj.boxBorderWidth > 0 && obj.boxBorderColor) {
+                                page.drawRectangle({
+                                    x: x,
+                                    y: y,
+                                    width: objWidth,
+                                    height: objHeight,
+                                    borderColor: hexToRgb(obj.boxBorderColor),
+                                    borderWidth: obj.boxBorderWidth * scaleFactor,
+                                    color: undefined
+                                });
                             }
 
                             // Text
