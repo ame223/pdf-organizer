@@ -2066,19 +2066,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Save Logic ---
     async function saveEditedPDF() {
-        if (fabricCanvas) {
-            const json = fabricCanvas.toJSON(['id', 'selectable']);
-            delete json.backgroundImage;
-            editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
+        // --- 1. UI: Loading State Start ---
+        // ヘッダー内の保存ボタンを取得 (クラスやIDで特定)
+        const btnSave = document.querySelector('#edit-action-buttons .btn.is-primary');
+        const originalBtnText = btnSave ? btnSave.innerHTML : '';
+
+        if (btnSave) {
+            btnSave.disabled = true;
+            btnSave.innerHTML = '<i class="material-icons result-spin">sync</i> 保存中...';
+            document.body.style.cursor = 'wait';
         }
 
         try {
+            // --- 2. Optimized JSON Saving ---
+            if (fabricCanvas) {
+                // ★重要: 背景画像をtoJSONに含めないよう、一時的に退避させる
+                // これを行わないと、巨大なBase64変換が走りブラウザがフリーズする
+                const originalBg = fabricCanvas.backgroundImage;
+                fabricCanvas.backgroundImage = null;
+
+                // 必要なプロパティを含めてJSON化
+                const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor', 'verticalAlign']);
+
+                // 背景画像を即座に戻す
+                fabricCanvas.backgroundImage = originalBg;
+
+                // ページデータとして保存 (backgroundImageは含まれていないのでdelete不要)
+                editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
+            }
+
+            // --- 3. PDF Generation Logic ---
             const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
             pdfDoc.registerFontkit(fontkit);
 
-            // Fonts
-            // Fonts (安定したCDN経由のURLに変更)
-            // Noto Sans JP (Regular & Bold) via unpkg
+            // Fonts (Load Noto Sans JP)
             const fontUrlReg = 'https://unpkg.com/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-400-normal.woff';
             const fontUrlBold = 'https://unpkg.com/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-700-normal.woff';
 
@@ -2086,12 +2107,10 @@ document.addEventListener('DOMContentLoaded', () => {
             let fontBold = null;
 
             try {
+                // 並列でダウンロード
                 const [bytesReg, bytesBold] = await Promise.all([
                     fetch(fontUrlReg).then(res => res.arrayBuffer()),
-                    fetch(fontUrlBold).then(res => res.arrayBuffer()).catch(e => {
-                        console.warn("Failed to load bold font", e);
-                        return null;
-                    })
+                    fetch(fontUrlBold).then(res => res.arrayBuffer()).catch(e => null)
                 ]);
 
                 fontRegular = await pdfDoc.embedFont(bytesReg);
@@ -2099,8 +2118,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     fontBold = await pdfDoc.embedFont(bytesBold);
                 }
             } catch (e) {
-                console.warn("Could not load JP fonts.", e);
-                alert("日本語フォントの読み込みに失敗しました。");
+                console.warn("Could not load JP fonts, using fallback.", e);
+                // エラー時はアラートを出さず、標準フォントで続行させる（UX優先）
             }
 
             const pages = pdfDoc.getPages();
@@ -2110,14 +2129,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const page = pages[i];
                 const { width, height } = page.getSize();
+                // Viewport scale was 1.5, so we need to divide by 1.5
                 const scaleFactor = 1 / 1.5;
                 const fabricData = editorPages[i].fabricJSON;
 
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
                         const x = obj.left * scaleFactor;
+                        // Fabricの座標系とPDF-Libの座標系の変換
+                        // obj.height * obj.scaleY で実際の表示高さを計算
                         const objHeight = (obj.height * obj.scaleY) * scaleFactor;
                         const objWidth = (obj.width * obj.scaleX) * scaleFactor;
+
+                        // PDF-libは左下が原点(0,0)なのでY座標を反転
                         const y = height - (obj.top * scaleFactor) - objHeight;
 
                         if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
@@ -2127,66 +2151,56 @@ document.addEventListener('DOMContentLoaded', () => {
                             const useBold = obj.fontWeight === 'bold' && fontBold;
                             const activeFont = useBold ? fontBold : (fontRegular || undefined);
 
-                            // Background Color (Handle Opacity)
+                            // Background Color
                             if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
-                                // Parse rgba/hex for pdf-lib
-                                let color;
+                                let color = hexToRgb(obj.backgroundColor);
                                 let opacity = 1;
 
-                                if (obj.backgroundColor.startsWith('rgba')) {
+                                // Simple check for RGBA strings if needed, otherwise rely on hexToRgb
+                                if (!color && obj.backgroundColor.startsWith('rgba')) {
                                     const match = obj.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
                                     if (match) {
                                         color = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
                                         opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
                                     }
-                                } else {
-                                    color = hexToRgb(obj.backgroundColor); // Assuming helper exists or using basic hex processing
                                 }
 
                                 if (color) {
                                     page.drawRectangle({
-                                        x: x,
-                                        y: y,
-                                        width: objWidth,
-                                        height: objHeight,
-                                        color: color,
-                                        opacity: opacity
+                                        x: x, y: y, width: objWidth, height: objHeight,
+                                        color: color, opacity: opacity
                                     });
                                 }
                             }
 
-                            // Box Border (New)
+                            // Box Border
                             if (obj.boxBorderWidth > 0 && obj.boxBorderColor) {
                                 page.drawRectangle({
-                                    x: x,
-                                    y: y,
-                                    width: objWidth,
-                                    height: objHeight,
+                                    x: x, y: y, width: objWidth, height: objHeight,
                                     borderColor: hexToRgb(obj.boxBorderColor),
                                     borderWidth: obj.boxBorderWidth * scaleFactor,
                                     color: undefined
                                 });
                             }
 
-                            // Text
-                            const textOptions = {
+                            // Draw Text
+                            // Y adjustment: PDF-lib draws text from baseline. 
+                            // This is an approximation.
+                            const textY = height - (obj.top * scaleFactor) - (fontSize * 0.88);
+
+                            page.drawText(obj.text, {
                                 x: x,
-                                y: height - (obj.top * scaleFactor) - (fontSize * 0.88),
+                                y: textY,
                                 size: fontSize,
                                 font: activeFont,
                                 color: hexToRgb(obj.fill),
                                 lineHeight: obj.lineHeight,
-                            };
+                                maxWidth: (obj.type === 'textbox') ? objWidth : undefined,
+                            });
 
-                            if (obj.type === 'textbox') {
-                                textOptions.maxWidth = objWidth;
-                            }
-
-                            page.drawText(obj.text, textOptions);
-
-                            // Underline
+                            // Underline Support
                             if (obj.underline) {
-                                const lineY = textOptions.y - 2;
+                                const lineY = textY - 2;
                                 page.drawLine({
                                     start: { x: x, y: lineY },
                                     end: { x: x + objWidth, y: lineY },
@@ -2196,95 +2210,52 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
 
                         } else if (obj.type === 'rect') {
-                            // Handle Rect Opacity if needed
-                            let fillColor = undefined;
-                            let opacity = 1;
-
-                            if (obj.fill && obj.fill !== 'transparent') {
-                                if (obj.fill.startsWith('rgba')) {
-                                    const match = obj.fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                                    if (match) {
-                                        fillColor = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
-                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
-                                    }
-                                } else {
-                                    fillColor = hexToRgb(obj.fill);
-                                }
-                            }
-
                             page.drawRectangle({
                                 x: x, y: y,
                                 width: objWidth,
                                 height: objHeight,
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
-                                color: fillColor,
-                                opacity: opacity
+                                color: hexToRgb(obj.fill), // Fill support
                             });
                         } else if (obj.type === 'circle' || obj.type === 'ellipse') {
-                            let fillColor = undefined;
-                            let opacity = 1;
-
-                            if (obj.fill && obj.fill !== 'transparent') {
-                                if (obj.fill.startsWith('rgba')) {
-                                    const match = obj.fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                                    if (match) {
-                                        fillColor = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
-                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
-                                    }
-                                } else {
-                                    fillColor = hexToRgb(obj.fill);
-                                }
-                            }
-
                             page.drawEllipse({
                                 x: x + objWidth / 2, y: y + objHeight / 2,
                                 xRadius: obj.rx * obj.scaleX * scaleFactor,
                                 yRadius: obj.ry * obj.scaleY * scaleFactor,
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
-                                color: fillColor,
-                                opacity: opacity
+                                color: hexToRgb(obj.fill),
                             });
                         } else if (obj.type === 'triangle') {
-                            let fillColor = undefined;
-                            let opacity = 1;
-
-                            if (obj.fill && obj.fill !== 'transparent') {
-                                if (obj.fill.startsWith('rgba')) {
-                                    const match = obj.fill.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                                    if (match) {
-                                        fillColor = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
-                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
-                                    }
-                                } else {
-                                    fillColor = hexToRgb(obj.fill);
-                                }
-                            }
-
-                            // Fabric.js triangle is an isosceles triangle with base at the bottom.
-                            // PDFLib drawPolygon needs points.
                             const points = [
-                                { x: x + objWidth / 2, y: y + objHeight }, // Top point
+                                { x: x + objWidth / 2, y: y + objHeight }, // Top
                                 { x: x, y: y },                         // Bottom-left
                                 { x: x + objWidth, y: y }               // Bottom-right
                             ];
-
                             page.drawPolygon(points, {
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
-                                color: fillColor,
-                                opacity: opacity
+                                color: hexToRgb(obj.fill),
                             });
                         }
                     }
                 }
             }
+
             const pdfBytes = await pdfDoc.save();
             downloadFile(pdfBytes, "edited_document.pdf");
+
         } catch (err) {
             console.error(err);
-            alert("保存に失敗しました: " + err.message);
+            alert("保存処理中にエラーが発生しました: " + err.message);
+        } finally {
+            // --- 4. UI: Restore State ---
+            if (btnSave) {
+                btnSave.disabled = false;
+                btnSave.innerHTML = originalBtnText;
+                document.body.style.cursor = 'default';
+            }
         }
     }
 
