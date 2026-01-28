@@ -797,6 +797,70 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRedo.addEventListener('click', redo);
 
     const canvasContainer = document.getElementById('canvas-container');
+    const editorSidebar = document.getElementById('editor-sidebar');
+
+    // サイドバーの描画
+    async function renderEditorSidebar() {
+        if (!editorSidebar) return;
+        editorSidebar.innerHTML = ''; // クリア
+
+        const pdfDoc = currentEditorPdfJsDoc;
+        if (!pdfDoc) return; // Add check
+
+        for (let i = 0; i < pdfDoc.numPages; i++) {
+            // コンテナ作成
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'sidebar-page-item';
+            itemDiv.dataset.pageIndex = i;
+            if (i === currentEditorPageIndex) itemDiv.classList.add('active');
+
+            // ページ番号
+            const numSpan = document.createElement('div');
+            numSpan.textContent = `Page ${i + 1}`;
+            numSpan.style.fontSize = '0.8rem';
+            numSpan.style.marginBottom = '4px';
+            itemDiv.appendChild(numSpan);
+
+            // サムネイル生成（軽量化のためscale小さめ）
+            const page = await pdfDoc.getPage(i + 1);
+            const viewport = page.getViewport({ scale: 0.2 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL();
+            itemDiv.appendChild(img);
+
+            // クリックイベント
+            itemDiv.addEventListener('click', () => {
+                // 現在のページと同じなら何もしない
+                if (currentEditorPageIndex === i) return;
+
+                // ページ切り替え（既存関数を使用）
+                loadEditorPage(i);
+            });
+
+            editorSidebar.appendChild(itemDiv);
+        }
+    }
+
+    // ページ切り替え時にサイドバーの選択状態を更新
+    function updateSidebarSelection(index) {
+        if (!editorSidebar) return;
+        const items = editorSidebar.querySelectorAll('.sidebar-page-item');
+        items.forEach(item => {
+            if (parseInt(item.dataset.pageIndex) === index) {
+                item.classList.add('active');
+                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    }
 
     function initializeEditor() {
         if (!fabricCanvas) {
