@@ -254,6 +254,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetApp() {
         loadedFiles = [];
         allPages = [];
+        // ★追加: 編集モード用のページマップもリセット
+        editorPageMap = [];
+        currentEditorPageIndex = 0;
+
         renderGrid();
         dropZone.classList.remove('hidden');
         dropZone.classList.remove('compact'); // Reset style
@@ -266,9 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
         editorArea.classList.add('hidden');
         previewArea.classList.remove('hidden');
 
-        // ★ここを修正（nullチェックを追加）
-        if (editorControls) {
+        // nullチェック付きで非表示化
+        if (typeof editorControls !== 'undefined' && editorControls) {
             editorControls.classList.add('hidden');
+        } else {
+            // editorControls変数が古くて参照できない場合のフォールバック
+            const ctrls = document.getElementById('editor-controls');
+            if (ctrls) ctrls.classList.add('hidden');
         }
 
         editorPages = [];
