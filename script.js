@@ -1989,64 +1989,84 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadEditorPage(index) {
         // 現在のページ状態を保存
         if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
-            const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor']); // カスタムプロパティを追加で保存
-            delete json.backgroundImage;
+            // ★重要: メモリ爆発を防ぐため、背景画像を一時的に退避
+            const originalBg = fabricCanvas.backgroundImage;
+            fabricCanvas.backgroundImage = null;
+
+            // 背景画像抜きでJSON化
+            const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor', 'verticalAlign']);
+
+            // データを保存
             editorPages[currentEditorPageIndex].fabricJSON = json;
+
+            // 背景画像を即座に戻す（ユーザーには気づかれない）
+            fabricCanvas.backgroundImage = originalBg;
         }
 
-        // インデックス範囲チェック
         if (index < 0 || index >= editorPageMap.length) return;
 
         currentEditorPageIndex = index;
-
-        // ★ここを変更: マップから情報を取得
         const pageInfo = editorPageMap[index];
-        const page = await pageInfo.pdfJsDoc.getPage(pageInfo.pageIndex + 1); // getPageは1始まり
-
-        // viewport作成、キャンバスサイズ変更
+        const pdfJsDoc = pageInfo.pdfJsDoc;
+        const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
         const viewport = page.getViewport({ scale: 1.5 });
-        fabricCanvas.setWidth(viewport.width);
-        fabricCanvas.setHeight(viewport.height);
-        fabricCanvas.clear();
 
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        // Canvas Re-initialization
+        if (fabricCanvas) {
+            fabricCanvas.clear();
+            fabricCanvas.setWidth(viewport.width);
+            fabricCanvas.setHeight(viewport.height);
+        } else {
+            // Should be initialized already but just in case
+            initializeEditor();
+            fabricCanvas.setWidth(viewport.width);
+            fabricCanvas.setHeight(viewport.height);
+        }
+
+        // Render PDF Page to Canvas Background
+        const canvasEl = document.createElement('canvas');
+        const context = canvasEl.getContext('2d');
+        canvasEl.height = viewport.height;
+        canvasEl.width = viewport.width;
+
         await page.render({ canvasContext: context, viewport: viewport }).promise;
 
-        const imgEl = new Image();
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.8));
-        imgEl.src = URL.createObjectURL(blob);
+        const bgImage = new fabric.Image(canvasEl, {
+            left: 0,
+            top: 0,
+            angle: 0,
+            opacity: 1,
+            selectable: false,
+            evented: false,
+        });
+        fabricCanvas.setBackgroundImage(bgImage, fabricCanvas.renderAll.bind(fabricCanvas));
 
-        imgEl.onload = () => {
-            const fImg = new fabric.Image(imgEl);
-            fImg.set({
-                originX: 'left', originY: 'top',
-                selectable: false, evented: false,
-                width: viewport.width, height: viewport.height
+        // Restore Objects
+        // ページ切り替え時に、保存されたJSONがあれば復元
+        if (editorPages[index] && editorPages[index].fabricJSON) {
+            fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
+                fabricCanvas.renderAll();
+                // 今回はページ遷移で履歴はリセットする仕様とする（複雑化回避）
+                historyStack = [];
+                historyIndex = -1;
+                isHistoryLocked = false;
+                if (typeof updateHistoryUI === 'function') updateHistoryUI();
             });
-            fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
-            URL.revokeObjectURL(imgEl.src);
-
-            // オブジェクトの復元
-            if (!editorPages[index]) {
-                editorPages[index] = { pageIndex: index, fabricJSON: null };
-            }
-            if (editorPages[index].fabricJSON) {
-                fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
-                    fabricCanvas.setBackgroundImage(fImg, fabricCanvas.renderAll.bind(fabricCanvas));
-                    historyStack = []; historyIndex = -1; saveHistory();
-                });
-            } else {
-                historyStack = []; historyIndex = -1; saveHistory();
-            }
-        };
+        } else {
+            // 新規ページなので履歴リセット
+            editorPages[index] = { pageIndex: index, fabricJSON: null };
+            historyStack = [];
+            historyIndex = -1;
+            isHistoryLocked = false;
+            if (typeof updateHistoryUI === 'function') updateHistoryUI();
+        }
 
         // ページインジケータ更新
-        pageIndicator.textContent = `Page ${index + 1} / ${editorPageMap.length}`; // 分母をMapの長さに
-        btnPrevPage.disabled = index === 0;
-        btnNextPage.disabled = index === editorPageMap.length - 1;
+        if (pageIndicator) { // null check
+            pageIndicator.textContent = `Page ${index + 1} / ${editorPageMap.length}`;
+        }
+        if (btnPrevPage) btnPrevPage.disabled = index === 0;
+        if (btnNextPage) btnNextPage.disabled = index === editorPageMap.length - 1;
 
         // サイドバーの選択状態更新
         updateSidebarSelection(index);
@@ -2066,8 +2086,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Save Logic ---
     async function saveEditedPDF() {
-        // --- 1. UI: Loading State Start ---
-        // ヘッダー内の保存ボタンを取得 (クラスやIDで特定)
+        // --- 1. UI: Loading State ---
         const btnSave = document.querySelector('#edit-action-buttons .btn.is-primary');
         const originalBtnText = btnSave ? btnSave.innerHTML : '';
 
@@ -2077,51 +2096,59 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.style.cursor = 'wait';
         }
 
+        // UI描画時間を確保
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         try {
-            // --- 2. Optimized JSON Saving ---
+            // --- 2. メモリ対策済みJSON保存 ---
             if (fabricCanvas) {
-                // ★重要: 背景画像をtoJSONに含めないよう、一時的に退避させる
-                // これを行わないと、巨大なBase64変換が走りブラウザがフリーズする
                 const originalBg = fabricCanvas.backgroundImage;
                 fabricCanvas.backgroundImage = null;
-
-                // 必要なプロパティを含めてJSON化
                 const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor', 'verticalAlign']);
-
-                // 背景画像を即座に戻す
                 fabricCanvas.backgroundImage = originalBg;
-
-                // ページデータとして保存 (backgroundImageは含まれていないのでdelete不要)
                 editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
             }
 
-            // --- 3. PDF Generation Logic ---
+            // --- 3. PDF準備 ---
             const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
             pdfDoc.registerFontkit(fontkit);
 
-            // Fonts (Load Noto Sans JP)
-            const fontUrlReg = 'https://unpkg.com/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-400-normal.woff';
-            const fontUrlBold = 'https://unpkg.com/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-700-normal.woff';
+            // ★変更点: Google Fonts (via jsDelivr) の WOFF2 形式を使用 (軽量・高速)
+            const fontUrlReg = 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-400-normal.woff2';
+            const fontUrlBold = 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@5.0.19/files/noto-sans-jp-japanese-700-normal.woff2';
 
             let fontRegular = null;
             let fontBold = null;
 
+            // タイムアウト付きフェッチ関数 (3秒で諦める)
+            const fetchWithTimeout = (url, ms) => {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), ms);
+                return fetch(url, { signal: controller.signal })
+                    .then(res => {
+                        clearTimeout(id);
+                        if (!res.ok) throw new Error(res.statusText);
+                        return res.arrayBuffer();
+                    });
+            };
+
             try {
-                // 並列でダウンロード
+                console.log("Downloading fonts (WOFF2)...");
+                // 並列ダウンロード開始
                 const [bytesReg, bytesBold] = await Promise.all([
-                    fetch(fontUrlReg).then(res => res.arrayBuffer()),
-                    fetch(fontUrlBold).then(res => res.arrayBuffer()).catch(e => null)
+                    fetchWithTimeout(fontUrlReg, 3000),
+                    fetchWithTimeout(fontUrlBold, 3000).catch(e => null) // 太字は失敗しても無視
                 ]);
 
-                fontRegular = await pdfDoc.embedFont(bytesReg);
-                if (bytesBold) {
-                    fontBold = await pdfDoc.embedFont(bytesBold);
-                }
+                if (bytesReg) fontRegular = await pdfDoc.embedFont(bytesReg);
+                if (bytesBold) fontBold = await pdfDoc.embedFont(bytesBold);
+
             } catch (e) {
-                console.warn("Could not load JP fonts, using fallback.", e);
-                // エラー時はアラートを出さず、標準フォントで続行させる（UX優先）
+                console.warn("Font download failed or timed out. Using standard font fallback.", e);
+                // アラートは出さずに標準フォントで続行
             }
 
+            // --- 4. ページ描画ループ ---
             const pages = pdfDoc.getPages();
 
             for (let i = 0; i < pages.length; i++) {
@@ -2129,42 +2156,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const page = pages[i];
                 const { width, height } = page.getSize();
-                // Viewport scale was 1.5, so we need to divide by 1.5
                 const scaleFactor = 1 / 1.5;
                 const fabricData = editorPages[i].fabricJSON;
 
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
                         const x = obj.left * scaleFactor;
-                        // Fabricの座標系とPDF-Libの座標系の変換
-                        // obj.height * obj.scaleY で実際の表示高さを計算
                         const objHeight = (obj.height * obj.scaleY) * scaleFactor;
                         const objWidth = (obj.width * obj.scaleX) * scaleFactor;
-
-                        // PDF-libは左下が原点(0,0)なのでY座標を反転
                         const y = height - (obj.top * scaleFactor) - objHeight;
 
                         if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
                             const fontSize = obj.fontSize * obj.scaleX * scaleFactor;
-
-                            // Select Font
                             const useBold = obj.fontWeight === 'bold' && fontBold;
                             const activeFont = useBold ? fontBold : (fontRegular || undefined);
 
-                            // Background Color
+                            // 背景色 (RGBA対応)
                             if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
                                 let color = hexToRgb(obj.backgroundColor);
                                 let opacity = 1;
-
-                                // Simple check for RGBA strings if needed, otherwise rely on hexToRgb
                                 if (!color && obj.backgroundColor.startsWith('rgba')) {
                                     const match = obj.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
                                     if (match) {
                                         color = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
-                                        opacity = match[4] !== undefined ? parseFloat(match[4]) : 1;
+                                        opacity = match[4] ? parseFloat(match[4]) : 1;
                                     }
                                 }
-
                                 if (color) {
                                     page.drawRectangle({
                                         x: x, y: y, width: objWidth, height: objHeight,
@@ -2173,7 +2190,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
 
-                            // Box Border
+                            // 枠線
                             if (obj.boxBorderWidth > 0 && obj.boxBorderColor) {
                                 page.drawRectangle({
                                     x: x, y: y, width: objWidth, height: objHeight,
@@ -2183,22 +2200,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                             }
 
-                            // Draw Text
-                            // Y adjustment: PDF-lib draws text from baseline. 
-                            // This is an approximation.
+                            // テキスト描画
                             const textY = height - (obj.top * scaleFactor) - (fontSize * 0.88);
-
                             page.drawText(obj.text, {
-                                x: x,
-                                y: textY,
-                                size: fontSize,
-                                font: activeFont,
+                                x: x, y: textY, size: fontSize,
+                                font: activeFont, // フォント未取得時は undefined (Standard Font)
                                 color: hexToRgb(obj.fill),
                                 lineHeight: obj.lineHeight,
                                 maxWidth: (obj.type === 'textbox') ? objWidth : undefined,
                             });
 
-                            // Underline Support
+                            // 下線
                             if (obj.underline) {
                                 const lineY = textY - 2;
                                 page.drawLine({
@@ -2209,35 +2221,27 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                             }
 
-                        } else if (obj.type === 'rect') {
-                            page.drawRectangle({
-                                x: x, y: y,
-                                width: objWidth,
-                                height: objHeight,
+                        } else if (['rect', 'circle', 'triangle', 'ellipse'].includes(obj.type)) {
+                            // 図形の描画 (既存ロジック)
+                            const op = {
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
-                                color: hexToRgb(obj.fill), // Fill support
-                            });
-                        } else if (obj.type === 'circle' || obj.type === 'ellipse') {
-                            page.drawEllipse({
-                                x: x + objWidth / 2, y: y + objHeight / 2,
-                                xRadius: obj.rx * obj.scaleX * scaleFactor,
-                                yRadius: obj.ry * obj.scaleY * scaleFactor,
-                                borderColor: hexToRgb(obj.stroke),
-                                borderWidth: obj.strokeWidth * scaleFactor,
-                                color: hexToRgb(obj.fill),
-                            });
-                        } else if (obj.type === 'triangle') {
-                            const points = [
-                                { x: x + objWidth / 2, y: y + objHeight }, // Top
-                                { x: x, y: y },                         // Bottom-left
-                                { x: x + objWidth, y: y }               // Bottom-right
-                            ];
-                            page.drawPolygon(points, {
-                                borderColor: hexToRgb(obj.stroke),
-                                borderWidth: obj.strokeWidth * scaleFactor,
-                                color: hexToRgb(obj.fill),
-                            });
+                                color: hexToRgb(obj.fill)
+                            };
+
+                            if (obj.type === 'rect') {
+                                page.drawRectangle({ x: x, y: y, width: objWidth, height: objHeight, ...op });
+                            } else if (obj.type === 'circle' || obj.type === 'ellipse') {
+                                page.drawEllipse({
+                                    x: x + objWidth / 2, y: y + objHeight / 2,
+                                    xRadius: obj.rx * obj.scaleX * scaleFactor,
+                                    yRadius: obj.ry * obj.scaleY * scaleFactor,
+                                    ...op
+                                });
+                            } else if (obj.type === 'triangle') {
+                                const points = [{ x: x + objWidth / 2, y: y + objHeight }, { x: x, y: y }, { x: x + objWidth, y: y }];
+                                page.drawPolygon(points, op);
+                            }
                         }
                     }
                 }
@@ -2250,7 +2254,6 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(err);
             alert("保存処理中にエラーが発生しました: " + err.message);
         } finally {
-            // --- 4. UI: Restore State ---
             if (btnSave) {
                 btnSave.disabled = false;
                 btnSave.innerHTML = originalBtnText;
