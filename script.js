@@ -1360,19 +1360,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toolbarTextTools) toolbarTextTools.style.display = 'none';
         }
 
+        // 共通: 太さ (Stroke Width / Box Border Width)
         if (floatStrokeWidth && floatStrokeWidth.parentElement) {
-            floatStrokeWidth.parentElement.style.display = 'flex'; // Force visibility
+            floatStrokeWidth.parentElement.style.display = 'flex';
             floatStrokeWidth.parentElement.style.alignItems = 'center';
-            if (isText) {
-                floatStrokeWidth.value = obj.boxBorderWidth || 0;
-            } else {
-                floatStrokeWidth.value = obj.strokeWidth || 0;
-            }
+
+            const currentVal = isText ? (obj.boxBorderWidth || 0) : (obj.strokeWidth || 0);
+            floatStrokeWidth.value = currentVal;
         }
 
         // テキスト専用: 枠線の色ボタンの表示
         if (wrapperBorderColor) {
-            wrapperBorderColor.style.display = isText ? 'flex' : 'none'; // Ensure check for text
+            // style.display = 'none' ではなく、クラス操作やより強力な表示強制を行う
+            if (isText) {
+                wrapperBorderColor.style.display = 'flex';
+                wrapperBorderColor.classList.remove('hidden');
+            } else {
+                wrapperBorderColor.style.display = 'none';
+                wrapperBorderColor.classList.add('hidden');
+            }
+
             if (isText && indicatorBorderColor) {
                 indicatorBorderColor.style.backgroundColor = obj.boxBorderColor || 'transparent';
                 if (obj.boxBorderWidth === 0) indicatorBorderColor.style.backgroundColor = 'transparent';
