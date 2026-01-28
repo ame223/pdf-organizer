@@ -619,3 +619,23 @@ input[type="color"]::-webkit-color-swatch {
     top: auto;
     border-color: transparent transparent #ccc transparent;
 }
+
+/* ポップアップの上下表示切り替え */
+.popup-panel {
+    /* デフォルトは上向き（変更なし） */
+    bottom: calc(100% + 10px);
+    top: auto;
+}
+
+/* 下向きに表示する場合のクラス */
+.popup-panel.opens-down {
+    bottom: auto;
+    top: calc(100% + 10px);
+}
+
+/* 下向き時の矢印（上向き三角） */
+.popup-panel.opens-down::after {
+    top: auto;
+    bottom: 100%;
+    border-color: transparent transparent #ccc transparent;
+}

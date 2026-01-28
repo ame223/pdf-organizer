@@ -1026,6 +1026,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 1. Tool Selection Handlers
+
+    // テキスト追加ボタン (onclickで強制上書きして確実に動作させる)
+    const activeBtnAddText = document.getElementById('btn-add-text');
+    if (activeBtnAddText) {
+        activeBtnAddText.onclick = (e) => {
+            e.preventDefault(); // フォーカス移動などを防ぐ
+
+            currentEditorTool = 'text';
+            if (fabricCanvas) {
+                fabricCanvas.defaultCursor = 'text';
+                fabricCanvas.discardActiveObject();
+                fabricCanvas.renderAll();
+            }
+
+            // UI更新
+            resetToolButtons();
+            activeBtnAddText.classList.remove('is-outlined');
+            activeBtnAddText.classList.add('is-primary');
+        };
+    }
+
     // 2. Canvas Initialization & Event Handlers
     function initializeEditor() {
         if (!fabricCanvas) {
@@ -1378,44 +1400,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateToolbarPosition() {
         if (floatingToolbar.classList.contains('hidden')) return;
-
         const activeObj = fabricCanvas.getActiveObject();
-        if (!activeObj) {
-            hideFloatingToolbar();
-            return;
-        }
+        if (!activeObj) return;
 
         const bound = activeObj.getBoundingRect();
-
-        // ツールバーと画面のサイズを取得
         const toolbarWidth = floatingToolbar.offsetWidth;
         const toolbarHeight = floatingToolbar.offsetHeight;
         const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
 
-        // 基本位置（オブジェクトの中央上部）
+        // 基本位置
         let top = bound.top - toolbarHeight - 10;
         let left = bound.left + (bound.width / 2) - (toolbarWidth / 2);
 
-        // --- 画面端の補正処理 ---
+        // 画面端の補正
+        if (left < 10) left = 10;
+        if (left + toolbarWidth > windowWidth) left = windowWidth - toolbarWidth - 20;
 
-        // 1. 左端チェック
-        if (left < 0) {
-            left = 10; // 少し余白を持たせる
-        }
-
-        // 2. 右端チェック（ツールバーが右にはみ出す場合、左にずらす）
-        if (left + toolbarWidth > windowWidth) {
-            left = windowWidth - toolbarWidth - 20; // スクロールバー等を考慮して少し余白
-        }
-
-        // 3. 上端チェック（画面上にはみ出す場合、オブジェクトの下に表示）
-        if (top < 0) {
+        // 上端チェック（画面上にはみ出す場合、オブジェクトの下に表示）
+        if (top < 10) {
             top = bound.top + bound.height + 10;
         }
 
         floatingToolbar.style.top = `${top}px`;
         floatingToolbar.style.left = `${left}px`;
+
+        // --- ポップアップの向き自動調整 ---
+        // ツールバーが画面の上の方(300px以内)にある場合、ポップアップを下に出す
+        const shouldOpenDown = top < 300;
+
+        [popupTextColor, popupBgColor].forEach(popup => {
+            if (popup) {
+                if (shouldOpenDown) {
+                    popup.classList.add('opens-down');
+                } else {
+                    popup.classList.remove('opens-down');
+                }
+            }
+        });
     }
 
     function rgbToHex(r, g, b) {
