@@ -2286,13 +2286,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ...op
                                 });
                             } else if (obj.type === 'triangle') {
-                                const points = [{ x: x + objWidth / 2, y: y + objHeight }, { x: x, y: y }, { x: x + objWidth, y: y }];
-                                page.drawPolygon(points, op);
+                                const path = `M ${x} ${y} L ${x + objWidth / 2} ${y + objHeight} L ${x + objWidth} ${y} Z`;
+
+                                page.drawSvgPath(path, {
+                                    borderColor: hexToRgb(obj.stroke),
+                                    borderWidth: obj.strokeWidth * scaleFactor,
+                                    color: hexToRgb(obj.fill),
+                                    opacity: 1,
+                                });
                             }
                         }
                     }
                 }
             }
+
 
             const pdfBytes = await pdfDoc.save();
             downloadFile(pdfBytes, "edited_document.pdf");
