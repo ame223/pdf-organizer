@@ -1236,12 +1236,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 fill: 'rgba(0, 150, 136, 0.2)', stroke: '#009688', strokeWidth: 1, strokeDashArray: [5, 5]
             });
         } else if (currentEditorTool === 'rect') {
+            // 【修正】四角形もここで定義
             drawingObject = new fabric.Rect({ ...commonProps, width: 0, height: 0 });
         } else if (currentEditorTool === 'circle') {
+            // 【修正】円もここで定義
             drawingObject = new fabric.Ellipse({ ...commonProps, rx: 0, ry: 0 });
+        }
 
-
-            if (drawingObject) fabricCanvas.add(drawingObject);
+        // 【修正】どのツールであっても、オブジェクトが生成されていればキャンバスに追加する
+        if (drawingObject) {
+            fabricCanvas.add(drawingObject);
         }
     }
 
@@ -1254,10 +1258,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const t = pointer.y < startY ? pointer.y : startY;
 
         if (currentEditorTool === 'text') {
-            drawingObject.set({ width: Math.max(w, 20), height: Math.max(h, 20) }); // 高さも更新
+            drawingObject.set({ width: Math.max(w, 20), height: Math.max(h, 20) });
         } else if (currentEditorTool === 'rect') {
             drawingObject.set({ left: l, top: t, width: w, height: h });
         } else if (currentEditorTool === 'circle') {
+            // 【修正】rx/ry と width/height を完全に同期させる
             drawingObject.set({
                 left: l,
                 top: t,
