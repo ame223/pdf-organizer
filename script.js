@@ -1152,7 +1152,27 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.on('selection:updated', onSelectionChanged);
             fabricCanvas.on('selection:cleared', onSelectionCleared);
 
-            fabricCanvas.on('object:modified', saveHistory);
+            // ★修正: リサイズ完了時にスケールを内部プロパティに焼き付ける（保存時の巨大化バグ防止）
+            fabricCanvas.on('object:modified', (e) => {
+                const obj = e.target;
+                if (obj.type === 'ellipse') {
+                    // rx, ry に現在のスケールを適用
+                    obj.rx *= obj.scaleX;
+                    obj.ry *= obj.scaleY;
+
+                    // width, height も更新（バウンディングボックス用）
+                    obj.width = obj.rx * 2;
+                    obj.height = obj.ry * 2;
+
+                    // スケールを 1.0 にリセット
+                    obj.scaleX = 1;
+                    obj.scaleY = 1;
+
+                    // 座標再計算
+                    obj.setCoords();
+                }
+                saveHistory();
+            });
             fabricCanvas.on('object:added', saveHistory);
             fabricCanvas.on('object:removed', saveHistory);
 
