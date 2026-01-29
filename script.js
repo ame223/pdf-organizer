@@ -2216,34 +2216,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fabricData = editorPages[i].fabricJSON;
 
                 if (fabricData.objects) {
+                    // ヘルパー: 数値を安全に取得（文字列型も考慮）
+                    const safeGetNum = (val, def) => {
+                        const n = parseFloat(val);
+                        return isNaN(n) ? def : n;
+                    };
+
                     console.log("Saving Objects:", JSON.stringify(fabricData.objects, null, 2)); // DEBUG Log
+
                     for (const obj of fabricData.objects) {
-                        // ★修正: 値の安全な取得 (undefinedによるNaNエラー回避)
-                        // Fabric.jsのtoJSONではデフォルト値(scale=1など)が省略されることがあるため、
-                        // 確実に数値が入るようにデフォルト値を設定する
-                        const oScaleX = (typeof obj.scaleX === 'number') ? obj.scaleX : 1;
-                        const oScaleY = (typeof obj.scaleY === 'number') ? obj.scaleY : 1;
-                        const oLeft = (typeof obj.left === 'number') ? obj.left : 0;
-                        const oTop = (typeof obj.top === 'number') ? obj.top : 0;
-                        const oAngle = (typeof obj.angle === 'number') ? obj.angle : 0;
-                        const oWidth = (typeof obj.width === 'number') ? obj.width : 0;
-                        const oHeight = (typeof obj.height === 'number') ? obj.height : 0;
-                        const oStrokeWidth = (typeof obj.strokeWidth === 'number') ? obj.strokeWidth : 0;
+                        // ★修正: 文字列型の数値も許容して安全に取得
+                        const oScaleX = safeGetNum(obj.scaleX, 1);
+                        const oScaleY = safeGetNum(obj.scaleY, 1);
+                        const oLeft = safeGetNum(obj.left, 0);
+                        const oTop = safeGetNum(obj.top, 0);
+                        const oAngle = safeGetNum(obj.angle, 0);
+                        const oWidth = safeGetNum(obj.width, 0);
+                        const oHeight = safeGetNum(obj.height, 0);
+                        const oStrokeWidth = safeGetNum(obj.strokeWidth, 0);
 
                         const x = oLeft * scaleFactor;
 
                         // 寸法決定ロジック
                         let finalWidth, finalHeight;
 
-                        // 1. Ellipse
-                        if (typeof obj.rx === 'number' && typeof obj.ry === 'number') {
-                            finalWidth = obj.rx * 2 * oScaleX;
-                            finalHeight = obj.ry * 2 * oScaleY;
+                        // プロパティの存在確認も兼ねてパース
+                        const pRx = parseFloat(obj.rx);
+                        const pRy = parseFloat(obj.ry);
+                        const pRadius = parseFloat(obj.radius);
+
+                        // 1. Ellipse (rx, ryを持っている場合を最優先)
+                        if (!isNaN(pRx) && !isNaN(pRy)) {
+                            finalWidth = pRx * 2 * oScaleX;
+                            finalHeight = pRy * 2 * oScaleY;
                         }
-                        // 2. Circle
-                        else if (typeof obj.radius === 'number') {
-                            finalWidth = obj.radius * 2 * oScaleX;
-                            finalHeight = obj.radius * 2 * oScaleY;
+                        // 2. Circle (radiusを持っている場合)
+                        else if (!isNaN(pRadius)) {
+                            finalWidth = pRadius * 2 * oScaleX;
+                            finalHeight = pRadius * 2 * oScaleY;
                         }
                         // 3. Fallback
                         else {
@@ -2261,11 +2271,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         const rotateOp = { rotate: PDFLib.degrees(oAngle) };
 
                         if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
-                            const fontSize = (obj.fontSize || 24) * oScaleX * scaleFactor;
+                            const fontSize = safeGetNum(obj.fontSize, 24) * oScaleX * scaleFactor;
                             const useBold = obj.fontWeight === 'bold' && fontBold;
                             const activeFont = useBold ? fontBold : (fontRegular || undefined);
 
-                            // 背景色 (RGBA対応)
+                            // 背景色
                             if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
                                 let color = hexToRgb(obj.backgroundColor);
                                 let opacity = 1;
@@ -2286,7 +2296,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
 
                             // 枠線
-                            const boxBorderWidth = (typeof obj.boxBorderWidth === 'number') ? obj.boxBorderWidth : 0;
+                            const boxBorderWidth = safeGetNum(obj.boxBorderWidth, 0);
                             if (boxBorderWidth > 0 && obj.boxBorderColor) {
                                 page.drawRectangle({
                                     x: x, y: y, width: objWidth, height: objHeight,
@@ -2338,12 +2348,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
 
                         } else if (obj.type === 'ellipse' || obj.type === 'circle') {
-                            // 【重要】楕円・円の描画
+                            // 楕円・円
                             page.drawEllipse({
-                                x: x + (objWidth / 2),  // 左端 + 半径 = 中心X
-                                y: y + (objHeight / 2), // 下端 + 半径 = 中心Y
-                                xRadius: objWidth / 2,  // 幅 / 2 = 半径X
-                                yRadius: objHeight / 2, // 高さ / 2 = 半径Y
+                                x: x + (objWidth / 2),
+                                y: y + (objHeight / 2),
+                                xRadius: objWidth / 2,
+                                yRadius: objHeight / 2,
                                 ...rotateOp,
                                 borderColor: hexToRgb(obj.stroke || 'transparent'),
                                 borderWidth: oStrokeWidth * scaleFactor,
@@ -2353,6 +2363,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
+
 
 
 
