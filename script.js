@@ -1261,13 +1261,13 @@ document.addEventListener('DOMContentLoaded', () => {
             drawingObject.set({ left: l, top: t, width: w, height: h });
         } else if (currentEditorTool === 'circle') {
             // 【重要】rx/ry と width/height を完全に同期させることでスケール計算のバグを防ぐ
-            drawingObject.set({ 
-                left: l, 
-                top: t, 
-                width: w, 
-                height: h, 
-                rx: w / 2, 
-                ry: h / 2 
+            drawingObject.set({
+                left: l,
+                top: t,
+                width: w,
+                height: h,
+                rx: w / 2,
+                ry: h / 2
             });
         }
         fabricCanvas.renderAll();
@@ -2218,23 +2218,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
                         const x = obj.left * scaleFactor;
-                        
-                        // 【修正】オブジェクトタイプに応じて正しい幅・高さを計算する
-                        let objWidth, objHeight;
 
-                        if (obj.type === 'ellipse') {
-                            // 楕円は rx, ry を基準にする
-                            objWidth = (obj.rx * 2 * obj.scaleX) * scaleFactor;
-                            objHeight = (obj.ry * 2 * obj.scaleY) * scaleFactor;
-                        } else if (obj.type === 'circle') {
-                            // 円は radius を基準にする
-                            objWidth = (obj.radius * 2 * obj.scaleX) * scaleFactor;
-                            objHeight = (obj.radius * 2 * obj.scaleY) * scaleFactor;
-                        } else {
-                            // 四角形やテキストは width, height を基準にする
-                            objWidth = (obj.width * obj.scaleX) * scaleFactor;
-                            objHeight = (obj.height * obj.scaleY) * scaleFactor;
-                        }
+                        // 【修正】オブジェクトタイプに関わらず、見た目の幅・高さを基準にする（堅牢性向上）
+                        // Fabric.jsの仕様上、rx/ryとscaleの整合性が崩れている場合があるため、
+                        // 常に (width * scaleX) を正とすることで見た目通りのサイズを確保する
+                        objWidth = (obj.width * obj.scaleX) * scaleFactor;
+                        objHeight = (obj.height * obj.scaleY) * scaleFactor;
 
                         // 座標計算（Y座標はPDFの座標系に合わせて反転。Fabricのtopは上端なので高さを引く）
                         const y = height - (obj.top * scaleFactor) - objHeight;
