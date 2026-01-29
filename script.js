@@ -2306,110 +2306,111 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+    }
 
-        function hexToRgb(hex) {
-            if (!hex) return undefined;
-            var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-            hex = hex.replace(shorthandRegex, function (m, r, g, b) {
-                return r + r + g + g + b + b;
+    function hexToRgb(hex) {
+        if (!hex) return undefined;
+        var shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+        hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+            return r + r + g + g + b + b;
+        });
+
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? PDFLib.rgb(
+            parseInt(result[1], 16) / 255,
+            parseInt(result[2], 16) / 255,
+            parseInt(result[3], 16) / 255
+        ) : undefined;
+    }
+
+    // --- ズーム機能とページ送りの修正 ---
+
+    // 既存のイベントリスナーが競合しないように、ボタン要素をリセット（再取得・複製）して再設定します
+    function setupControlButtons() {
+        const resetElement = (id) => {
+            const el = document.getElementById(id);
+            if (el) {
+                const newEl = el.cloneNode(true);
+                el.parentNode.replaceChild(newEl, el);
+                return newEl;
+            }
+            return null;
+        };
+
+        const newBtnZoomIn = resetElement('btn-zoom-in');
+        const newBtnZoomOut = resetElement('btn-zoom-out');
+        const newBtnPrev = resetElement('btn-prev-page');
+        const newBtnNext = resetElement('btn-next-page');
+
+        // ズーム表示の更新関数
+        const updateZoomDisplay = () => {
+            if (!zoomLevelText || !canvasWrapper) return;
+
+            // 浮動小数点の誤差対策
+            currentZoomScale = Math.round(currentZoomScale * 1000) / 1000;
+
+            // 表示更新
+            zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+
+            // スタイル適用
+            canvasWrapper.style.transformOrigin = 'top center';
+            canvasWrapper.style.transform = `scale(${currentZoomScale})`;
+
+            // 拡大時の余白調整
+            if (currentZoomScale > 1) {
+                const margin = (currentZoomScale - 1) * 300; // 縦に見切れないよう余白を確保
+                canvasWrapper.style.marginTop = `${margin}px`;
+                canvasWrapper.style.marginBottom = `${margin}px`;
+            } else {
+                canvasWrapper.style.marginTop = '0';
+                canvasWrapper.style.marginBottom = '0';
+            }
+        };
+
+        // ズームイン（5%刻み）
+        if (newBtnZoomIn) {
+            newBtnZoomIn.addEventListener('click', () => {
+                if (currentZoomScale < 3.0) {
+                    currentZoomScale += 0.05;
+                    updateZoomDisplay();
+                }
             });
-
-            var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? PDFLib.rgb(
-                parseInt(result[1], 16) / 255,
-                parseInt(result[2], 16) / 255,
-                parseInt(result[3], 16) / 255
-            ) : undefined;
         }
 
-        // --- ズーム機能とページ送りの修正 ---
-
-        // 既存のイベントリスナーが競合しないように、ボタン要素をリセット（再取得・複製）して再設定します
-        function setupControlButtons() {
-            const resetElement = (id) => {
-                const el = document.getElementById(id);
-                if (el) {
-                    const newEl = el.cloneNode(true);
-                    el.parentNode.replaceChild(newEl, el);
-                    return newEl;
+        // ズームアウト（5%刻み）
+        if (newBtnZoomOut) {
+            newBtnZoomOut.addEventListener('click', () => {
+                if (currentZoomScale > 0.3) {
+                    currentZoomScale -= 0.05;
+                    updateZoomDisplay();
                 }
-                return null;
-            };
-
-            const newBtnZoomIn = resetElement('btn-zoom-in');
-            const newBtnZoomOut = resetElement('btn-zoom-out');
-            const newBtnPrev = resetElement('btn-prev-page');
-            const newBtnNext = resetElement('btn-next-page');
-
-            // ズーム表示の更新関数
-            const updateZoomDisplay = () => {
-                if (!zoomLevelText || !canvasWrapper) return;
-
-                // 浮動小数点の誤差対策
-                currentZoomScale = Math.round(currentZoomScale * 1000) / 1000;
-
-                // 表示更新
-                zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
-
-                // スタイル適用
-                canvasWrapper.style.transformOrigin = 'top center';
-                canvasWrapper.style.transform = `scale(${currentZoomScale})`;
-
-                // 拡大時の余白調整
-                if (currentZoomScale > 1) {
-                    const margin = (currentZoomScale - 1) * 300; // 縦に見切れないよう余白を確保
-                    canvasWrapper.style.marginTop = `${margin}px`;
-                    canvasWrapper.style.marginBottom = `${margin}px`;
-                } else {
-                    canvasWrapper.style.marginTop = '0';
-                    canvasWrapper.style.marginBottom = '0';
-                }
-            };
-
-            // ズームイン（5%刻み）
-            if (newBtnZoomIn) {
-                newBtnZoomIn.addEventListener('click', () => {
-                    if (currentZoomScale < 3.0) {
-                        currentZoomScale += 0.05;
-                        updateZoomDisplay();
-                    }
-                });
-            }
-
-            // ズームアウト（5%刻み）
-            if (newBtnZoomOut) {
-                newBtnZoomOut.addEventListener('click', () => {
-                    if (currentZoomScale > 0.3) {
-                        currentZoomScale -= 0.05;
-                        updateZoomDisplay();
-                    }
-                });
-            }
-
-            // 前へボタン
-            if (newBtnPrev) {
-                newBtnPrev.addEventListener('click', () => {
-                    if (currentEditorPageIndex > 0) {
-                        loadEditorPage(currentEditorPageIndex - 1);
-                    }
-                });
-            }
-
-            // 次へボタン
-            if (newBtnNext) {
-                newBtnNext.addEventListener('click', () => {
-                    const maxPage = editorPageMap.length > 0 ? editorPageMap.length : 1;
-                    if (currentEditorPageIndex < maxPage - 1) {
-                        loadEditorPage(currentEditorPageIndex + 1);
-                    }
-                });
-            }
-
-            // 初回ズーム表示更新
-            updateZoomDisplay();
+            });
         }
 
-        // 設定を実行
-        setupControlButtons();
+        // 前へボタン
+        if (newBtnPrev) {
+            newBtnPrev.addEventListener('click', () => {
+                if (currentEditorPageIndex > 0) {
+                    loadEditorPage(currentEditorPageIndex - 1);
+                }
+            });
+        }
 
-    });
+        // 次へボタン
+        if (newBtnNext) {
+            newBtnNext.addEventListener('click', () => {
+                const maxPage = editorPageMap.length > 0 ? editorPageMap.length : 1;
+                if (currentEditorPageIndex < maxPage - 1) {
+                    loadEditorPage(currentEditorPageIndex + 1);
+                }
+            });
+        }
+
+        // 初回ズーム表示更新
+        updateZoomDisplay();
+    }
+
+    // 設定を実行
+    setupControlButtons();
+
+});
