@@ -1236,14 +1236,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 fill: 'rgba(0, 150, 136, 0.2)', stroke: '#009688', strokeWidth: 1, strokeDashArray: [5, 5]
             });
         } else if (currentEditorTool === 'rect') {
-            // 【修正】四角形もここで定義
             drawingObject = new fabric.Rect({ ...commonProps, width: 0, height: 0 });
         } else if (currentEditorTool === 'circle') {
-            // 【修正】円もここで定義
+            // Circleツールでも実態はEllipseとして作成
             drawingObject = new fabric.Ellipse({ ...commonProps, rx: 0, ry: 0 });
         }
 
-        // 【修正】どのツールであっても、オブジェクトが生成されていればキャンバスに追加する
         if (drawingObject) {
             fabricCanvas.add(drawingObject);
         }
@@ -1262,14 +1260,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentEditorTool === 'rect') {
             drawingObject.set({ left: l, top: t, width: w, height: h });
         } else if (currentEditorTool === 'circle') {
-            // 【修正】rx/ry と width/height を完全に同期させる
-            drawingObject.set({
-                left: l,
-                top: t,
-                width: w,
-                height: h,
-                rx: w / 2,
-                ry: h / 2
+            // 【重要】rx/ry と width/height を完全に同期させることでスケール計算のバグを防ぐ
+            drawingObject.set({ 
+                left: l, 
+                top: t, 
+                width: w, 
+                height: h, 
+                rx: w / 2, 
+                ry: h / 2 
             });
         }
         fabricCanvas.renderAll();
@@ -2220,6 +2218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
                         const x = obj.left * scaleFactor;
+                        
                         // 【修正】オブジェクトタイプに応じて正しい幅・高さを計算する
                         let objWidth, objHeight;
 
@@ -2237,7 +2236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             objHeight = (obj.height * obj.scaleY) * scaleFactor;
                         }
 
-                        // 座標計算（Y座標はPDFの座標系に合わせて反転）
+                        // 座標計算（Y座標はPDFの座標系に合わせて反転。Fabricのtopは上端なので高さを引く）
                         const y = height - (obj.top * scaleFactor) - objHeight;
 
                         if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
@@ -2311,20 +2310,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
 
                         } else if (obj.type === 'ellipse' || obj.type === 'circle') {
-                            // 【重要】楕円・円の描画
-                            // pdf-libのdrawEllipseは「中心座標」と「半径」を指定する
-                            const op = {
-                                borderColor: hexToRgb(obj.stroke),
-                                borderWidth: obj.strokeWidth * scaleFactor,
-                                color: hexToRgb(obj.fill)
-                            };
-
+                            // 【重要】楕円・円の描画：中心座標と半径を渡す
                             page.drawEllipse({
                                 x: x + (objWidth / 2),  // 左端 + 半径 = 中心X
                                 y: y + (objHeight / 2), // 下端 + 半径 = 中心Y
                                 xRadius: objWidth / 2,  // 幅 / 2 = 半径X
                                 yRadius: objHeight / 2, // 高さ / 2 = 半径Y
-                                ...op
+                                borderColor: hexToRgb(obj.stroke),
+                                borderWidth: obj.strokeWidth * scaleFactor,
+                                color: hexToRgb(obj.fill)
                             });
                         }
                     }
