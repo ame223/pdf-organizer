@@ -2295,25 +2295,37 @@ document.addEventListener('DOMContentLoaded', () => {
                                 });
                             }
 
-                        } else if (['rect', 'circle', 'ellipse'].includes(obj.type)) {
-                            // 図形の描画 (既存ロジック)
+                        } else if (obj.type === 'rect') {
+                            // ...（四角形の描画コードは変更なし）...
+                            const op = {
+                                borderColor: hexToRgb(obj.stroke),
+                                borderWidth: obj.strokeWidth * scaleFactor,
+                                color: hexToRgb(obj.fill)
+                            };
+                            page.drawRectangle({
+                                x: x,
+                                y: y,
+                                width: objWidth,
+                                height: objHeight,
+                                ...op
+                            });
+
+                        } else if (obj.type === 'ellipse' || obj.type === 'circle') {
+                            // 【重要】楕円・円の描画
+                            // pdf-libのdrawEllipseは「中心座標」と「半径」を指定する
                             const op = {
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
                                 color: hexToRgb(obj.fill)
                             };
 
-                            if (obj.type === 'rect') {
-                                page.drawRectangle({ x: x, y: y, width: objWidth, height: objHeight, ...op });
-                            } else if (obj.type === 'circle' || obj.type === 'ellipse') {
-                                page.drawEllipse({
-                                    x: x + objWidth / 2, y: y + objHeight / 2,
-                                    xRadius: objWidth / 2,
-                                    yRadius: objHeight / 2,
-                                    ...op
-                                });
-
-                            }
+                            page.drawEllipse({
+                                x: x + (objWidth / 2),  // 左端 + 半径 = 中心X
+                                y: y + (objHeight / 2), // 下端 + 半径 = 中心Y
+                                xRadius: objWidth / 2,  // 幅 / 2 = 半径X
+                                yRadius: objHeight / 2, // 高さ / 2 = 半径Y
+                                ...op
+                            });
                         }
                     }
                 }
