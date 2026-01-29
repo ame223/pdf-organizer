@@ -2217,38 +2217,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
-                        const x = obj.left * scaleFactor;
+                        // ★修正: 値の安全な取得 (undefinedによるNaNエラー回避)
+                        // Fabric.jsのtoJSONではデフォルト値(scale=1など)が省略されることがあるため、
+                        // 確実に数値が入るようにデフォルト値を設定する
+                        const oScaleX = (typeof obj.scaleX === 'number') ? obj.scaleX : 1;
+                        const oScaleY = (typeof obj.scaleY === 'number') ? obj.scaleY : 1;
+                        const oLeft = (typeof obj.left === 'number') ? obj.left : 0;
+                        const oTop = (typeof obj.top === 'number') ? obj.top : 0;
+                        const oAngle = (typeof obj.angle === 'number') ? obj.angle : 0;
+                        const oWidth = (typeof obj.width === 'number') ? obj.width : 0;
+                        const oHeight = (typeof obj.height === 'number') ? obj.height : 0;
+                        const oStrokeWidth = (typeof obj.strokeWidth === 'number') ? obj.strokeWidth : 0;
 
-                        // 【再修正】オブジェクトタイプ文字列だけに依存せず、プロパティの存在を優先して寸法を決定する
-                        // これにより、Typeが'custom'になっていたり、EllipseなのにRxが無いなどの不整合な状態でも
-                        // 最も信頼できるプロパティを使って計算を行う。
+                        const x = oLeft * scaleFactor;
 
+                        // 寸法決定ロジック
                         let finalWidth, finalHeight;
 
-                        // 1. Ellipse (rx, ryを持っている場合を最優先)
+                        // 1. Ellipse
                         if (typeof obj.rx === 'number' && typeof obj.ry === 'number') {
-                            finalWidth = obj.rx * 2 * obj.scaleX;
-                            finalHeight = obj.ry * 2 * obj.scaleY;
+                            finalWidth = obj.rx * 2 * oScaleX;
+                            finalHeight = obj.ry * 2 * oScaleY;
                         }
-                        // 2. Circle (radiusを持っている場合)
+                        // 2. Circle
                         else if (typeof obj.radius === 'number') {
-                            finalWidth = obj.radius * 2 * obj.scaleX;
-                            finalHeight = obj.radius * 2 * obj.scaleY;
+                            finalWidth = obj.radius * 2 * oScaleX;
+                            finalHeight = obj.radius * 2 * oScaleY;
                         }
-                        // 3. Fallback (width, height)
+                        // 3. Fallback
                         else {
-                            finalWidth = obj.width * obj.scaleX;
-                            finalHeight = obj.height * obj.scaleY;
+                            finalWidth = oWidth * oScaleX;
+                            finalHeight = oHeight * oScaleY;
                         }
 
                         const objWidth = finalWidth * scaleFactor;
                         const objHeight = finalHeight * scaleFactor;
 
                         // 座標計算（Y座標はPDFの座標系に合わせて反転。Fabricのtopは上端なので高さを引く）
-                        const y = height - (obj.top * scaleFactor) - objHeight;
+                        const y = height - (oTop * scaleFactor) - objHeight;
+
+                        // 回転オブジェクト
+                        const rotateOp = { rotate: PDFLib.degrees(oAngle) };
 
                         if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
-                            const fontSize = obj.fontSize * obj.scaleX * scaleFactor;
+                            const fontSize = (obj.fontSize || 24) * oScaleX * scaleFactor;
                             const useBold = obj.fontWeight === 'bold' && fontBold;
                             const activeFont = useBold ? fontBold : (fontRegular || undefined);
 
@@ -2266,48 +2278,55 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (color) {
                                     page.drawRectangle({
                                         x: x, y: y, width: objWidth, height: objHeight,
-                                        color: color, opacity: opacity
+                                        color: color, opacity: opacity,
+                                        ...rotateOp
                                     });
                                 }
                             }
 
                             // 枠線
-                            if (obj.boxBorderWidth > 0 && obj.boxBorderColor) {
+                            const boxBorderWidth = (typeof obj.boxBorderWidth === 'number') ? obj.boxBorderWidth : 0;
+                            if (boxBorderWidth > 0 && obj.boxBorderColor) {
                                 page.drawRectangle({
                                     x: x, y: y, width: objWidth, height: objHeight,
                                     borderColor: hexToRgb(obj.boxBorderColor),
-                                    borderWidth: obj.boxBorderWidth * scaleFactor,
-                                    color: undefined
+                                    borderWidth: boxBorderWidth * scaleFactor,
+                                    color: undefined,
+                                    ...rotateOp
                                 });
                             }
 
                             // テキスト描画
-                            const textY = height - (obj.top * scaleFactor) - (fontSize * 0.88);
-                            page.drawText(obj.text, {
+                            const textY = height - (oTop * scaleFactor) - (fontSize * 0.88);
+
+                            page.drawText(obj.text || '', {
                                 x: x, y: textY, size: fontSize,
-                                font: activeFont, // フォント未取得時は undefined (Standard Font)
-                                color: hexToRgb(obj.fill),
+                                font: activeFont,
+                                color: hexToRgb(obj.fill || '#000000'),
                                 lineHeight: obj.lineHeight,
                                 maxWidth: (obj.type === 'textbox') ? objWidth : undefined,
+                                ...rotateOp
                             });
 
                             // 下線
                             if (obj.underline) {
                                 const lineY = textY - 2;
-                                page.drawLine({
-                                    start: { x: x, y: lineY },
-                                    end: { x: x + objWidth, y: lineY },
-                                    thickness: Math.max(1, fontSize / 15),
-                                    color: hexToRgb(obj.fill)
-                                });
+                                if (oAngle === 0) {
+                                    page.drawLine({
+                                        start: { x: x, y: lineY },
+                                        end: { x: x + objWidth, y: lineY },
+                                        thickness: Math.max(1, fontSize / 15),
+                                        color: hexToRgb(obj.fill || '#000000')
+                                    });
+                                }
                             }
 
                         } else if (obj.type === 'rect') {
-                            // ...（四角形の描画コードは変更なし）...
                             const op = {
-                                borderColor: hexToRgb(obj.stroke),
-                                borderWidth: obj.strokeWidth * scaleFactor,
-                                color: hexToRgb(obj.fill)
+                                borderColor: hexToRgb(obj.stroke || 'transparent'),
+                                borderWidth: oStrokeWidth * scaleFactor,
+                                color: hexToRgb(obj.fill || 'transparent'),
+                                ...rotateOp
                             };
                             page.drawRectangle({
                                 x: x,
@@ -2318,16 +2337,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
 
                         } else if (obj.type === 'ellipse' || obj.type === 'circle') {
-                            // 【重要】楕円・円の描画：中心座標と半径を渡す
+                            // 【重要】楕円・円の描画
                             page.drawEllipse({
                                 x: x + (objWidth / 2),  // 左端 + 半径 = 中心X
                                 y: y + (objHeight / 2), // 下端 + 半径 = 中心Y
                                 xRadius: objWidth / 2,  // 幅 / 2 = 半径X
                                 yRadius: objHeight / 2, // 高さ / 2 = 半径Y
-                                rotate: PDFLib.degrees(obj.angle || 0), // ★回転を追加
-                                borderColor: hexToRgb(obj.stroke),
-                                borderWidth: obj.strokeWidth * scaleFactor,
-                                color: hexToRgb(obj.fill)
+                                ...rotateOp,
+                                borderColor: hexToRgb(obj.stroke || 'transparent'),
+                                borderWidth: oStrokeWidth * scaleFactor,
+                                color: hexToRgb(obj.fill || 'transparent')
                             });
                         }
                     }
