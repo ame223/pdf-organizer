@@ -2216,6 +2216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fabricData = editorPages[i].fabricJSON;
 
                 if (fabricData.objects) {
+                    console.log("Saving Objects:", JSON.stringify(fabricData.objects, null, 2)); // DEBUG Log
                     for (const obj of fabricData.objects) {
                         // ★修正: 値の安全な取得 (undefinedによるNaNエラー回避)
                         // Fabric.jsのtoJSONではデフォルト値(scale=1など)が省略されることがあるため、
