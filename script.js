@@ -1258,7 +1258,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (currentEditorTool === 'rect') {
             drawingObject.set({ left: l, top: t, width: w, height: h });
         } else if (currentEditorTool === 'circle') {
-            drawingObject.set({ left: l, top: t, rx: w / 2, ry: h / 2 });
+            drawingObject.set({
+                left: l,
+                top: t,
+                width: w,
+                height: h,
+                rx: w / 2,
+                ry: h / 2
+            });
         }
         fabricCanvas.renderAll();
     }
