@@ -2220,8 +2220,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (fabricData.objects) {
                     for (const obj of fabricData.objects) {
                         const x = obj.left * scaleFactor;
-                        const objHeight = (obj.height * obj.scaleY) * scaleFactor;
-                        const objWidth = (obj.width * obj.scaleX) * scaleFactor;
+                        // 【修正】オブジェクトタイプに応じて正しい幅・高さを計算する
+                        let objWidth, objHeight;
+
+                        if (obj.type === 'ellipse') {
+                            // 楕円は rx, ry を基準にする
+                            objWidth = (obj.rx * 2 * obj.scaleX) * scaleFactor;
+                            objHeight = (obj.ry * 2 * obj.scaleY) * scaleFactor;
+                        } else if (obj.type === 'circle') {
+                            // 円は radius を基準にする
+                            objWidth = (obj.radius * 2 * obj.scaleX) * scaleFactor;
+                            objHeight = (obj.radius * 2 * obj.scaleY) * scaleFactor;
+                        } else {
+                            // 四角形やテキストは width, height を基準にする
+                            objWidth = (obj.width * obj.scaleX) * scaleFactor;
+                            objHeight = (obj.height * obj.scaleY) * scaleFactor;
+                        }
+
+                        // 座標計算（Y座標はPDFの座標系に合わせて反転）
                         const y = height - (obj.top * scaleFactor) - objHeight;
 
                         if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
