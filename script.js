@@ -1243,1070 +1243,1071 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (drawingObject) fabricCanvas.add(drawingObject);
         }
+    }
 
-        function onMouseMove(o) {
-            if (!isDrawing || !drawingObject) return;
-            const pointer = fabricCanvas.getPointer(o.e);
-            const w = Math.abs(pointer.x - startX);
-            const h = Math.abs(pointer.y - startY);
-            const l = pointer.x < startX ? pointer.x : startX;
-            const t = pointer.y < startY ? pointer.y : startY;
+    function onMouseMove(o) {
+        if (!isDrawing || !drawingObject) return;
+        const pointer = fabricCanvas.getPointer(o.e);
+        const w = Math.abs(pointer.x - startX);
+        const h = Math.abs(pointer.y - startY);
+        const l = pointer.x < startX ? pointer.x : startX;
+        const t = pointer.y < startY ? pointer.y : startY;
 
-            if (currentEditorTool === 'text') {
-                drawingObject.set({ width: Math.max(w, 20), height: Math.max(h, 20) }); // 高さも更新
-            } else if (currentEditorTool === 'rect') {
-                drawingObject.set({ left: l, top: t, width: w, height: h });
-            } else if (currentEditorTool === 'circle') {
-                drawingObject.set({ left: l, top: t, rx: w / 2, ry: h / 2 });
-            }
-            fabricCanvas.renderAll();
+        if (currentEditorTool === 'text') {
+            drawingObject.set({ width: Math.max(w, 20), height: Math.max(h, 20) }); // 高さも更新
+        } else if (currentEditorTool === 'rect') {
+            drawingObject.set({ left: l, top: t, width: w, height: h });
+        } else if (currentEditorTool === 'circle') {
+            drawingObject.set({ left: l, top: t, rx: w / 2, ry: h / 2 });
         }
+        fabricCanvas.renderAll();
+    }
 
-        function onMouseUp(o) {
-            if (!isDrawing) return;
-            isDrawing = false;
-            if (drawingObject) drawingObject.setCoords();
+    function onMouseUp(o) {
+        if (!isDrawing) return;
+        isDrawing = false;
+        if (drawingObject) drawingObject.setCoords();
 
-            if (currentEditorTool === 'text' && drawingObject) {
+        if (currentEditorTool === 'text' && drawingObject) {
+            fabricCanvas.remove(drawingObject);
+            // テキストボックス生成
+            // ★ boxHeight をドラッグした高さに設定し、上下のリサイズハンドルを有効化
+            const text = new fabric.Textbox('ここに入力', {
+                left: drawingObject.left, top: drawingObject.top,
+                width: drawingObject.width > 20 ? drawingObject.width : 150,
+                boxHeight: drawingObject.height > 20 ? drawingObject.height : 50, // 初期の高さを設定
+                fontFamily: 'Noto Sans JP',
+                fontSize: 24,
+                fill: '#000000',
+                backgroundColor: 'transparent',
+                boxBorderWidth: 0,
+                boxBorderColor: '#000000',
+                lockScalingY: false // 縦方向のリサイズを許可
+            });
+
+            // 縦方向のリサイズハンドルを明示的に有効化
+            text.setControlsVisibility({
+                mt: true,
+                mb: true,
+                ml: true,
+                mr: true
+            });
+
+            fabricCanvas.add(text);
+            fabricCanvas.setActiveObject(text);
+        } else if (['rect', 'circle'].includes(currentEditorTool)) {
+            if (drawingObject.width < 5 || drawingObject.height < 5) {
                 fabricCanvas.remove(drawingObject);
-                // テキストボックス生成
-                // ★ boxHeight をドラッグした高さに設定し、上下のリサイズハンドルを有効化
-                const text = new fabric.Textbox('ここに入力', {
-                    left: drawingObject.left, top: drawingObject.top,
-                    width: drawingObject.width > 20 ? drawingObject.width : 150,
-                    boxHeight: drawingObject.height > 20 ? drawingObject.height : 50, // 初期の高さを設定
-                    fontFamily: 'Noto Sans JP',
-                    fontSize: 24,
-                    fill: '#000000',
-                    backgroundColor: 'transparent',
-                    boxBorderWidth: 0,
-                    boxBorderColor: '#000000',
-                    lockScalingY: false // 縦方向のリサイズを許可
-                });
-
-                // 縦方向のリサイズハンドルを明示的に有効化
-                text.setControlsVisibility({
-                    mt: true,
-                    mb: true,
-                    ml: true,
-                    mr: true
-                });
-
-                fabricCanvas.add(text);
-                fabricCanvas.setActiveObject(text);
-            } else if (['rect', 'circle'].includes(currentEditorTool)) {
-                if (drawingObject.width < 5 || drawingObject.height < 5) {
-                    fabricCanvas.remove(drawingObject);
-                } else {
-                    fabricCanvas.setActiveObject(drawingObject);
-                }
-            }
-
-            saveHistory();
-            currentEditorTool = 'select';
-            fabricCanvas.defaultCursor = 'default';
-            drawingObject = null;
-            resetToolButtons();
-        }
-
-        // --- Zoom & Pagination Logic ---
-
-        // ズーム表示更新関数
-        function updateZoomDisplay() {
-            if (!zoomLevelText || !canvasWrapper) return;
-
-            // 浮動小数点の誤差対策
-            currentZoomScale = Math.round(currentZoomScale * 1000) / 1000;
-
-            // テキスト更新
-            zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
-
-            // スタイル適用
-            canvasWrapper.style.transformOrigin = 'top center';
-            canvasWrapper.style.transform = `scale(${currentZoomScale})`;
-
-            // 拡大時の余白調整（画面からはみ出さないように）
-            if (currentZoomScale > 1) {
-                const margin = (currentZoomScale - 1) * 300;
-                canvasWrapper.style.marginTop = `${margin}px`;
-                canvasWrapper.style.marginBottom = `${margin}px`;
             } else {
-                canvasWrapper.style.marginTop = '0';
-                canvasWrapper.style.marginBottom = '0';
+                fabricCanvas.setActiveObject(drawingObject);
             }
         }
 
-        // ズームインボタン (5%刻み)
-        if (btnZoomIn) {
-            btnZoomIn.addEventListener('click', () => {
-                if (currentZoomScale < 3.0) {
-                    currentZoomScale += 0.05;
-                    updateZoomDisplay();
-                }
-            });
+        saveHistory();
+        currentEditorTool = 'select';
+        fabricCanvas.defaultCursor = 'default';
+        drawingObject = null;
+        resetToolButtons();
+    }
+
+    // --- Zoom & Pagination Logic ---
+
+    // ズーム表示更新関数
+    function updateZoomDisplay() {
+        if (!zoomLevelText || !canvasWrapper) return;
+
+        // 浮動小数点の誤差対策
+        currentZoomScale = Math.round(currentZoomScale * 1000) / 1000;
+
+        // テキスト更新
+        zoomLevelText.textContent = `${Math.round(currentZoomScale * 100)}%`;
+
+        // スタイル適用
+        canvasWrapper.style.transformOrigin = 'top center';
+        canvasWrapper.style.transform = `scale(${currentZoomScale})`;
+
+        // 拡大時の余白調整（画面からはみ出さないように）
+        if (currentZoomScale > 1) {
+            const margin = (currentZoomScale - 1) * 300;
+            canvasWrapper.style.marginTop = `${margin}px`;
+            canvasWrapper.style.marginBottom = `${margin}px`;
+        } else {
+            canvasWrapper.style.marginTop = '0';
+            canvasWrapper.style.marginBottom = '0';
         }
+    }
 
-        // ズームアウトボタン (5%刻み)
-        if (btnZoomOut) {
-            btnZoomOut.addEventListener('click', () => {
-                if (currentZoomScale > 0.3) {
-                    currentZoomScale -= 0.05;
-                    updateZoomDisplay();
-                }
-            });
-        }
-
-        // 前へボタン
-        if (btnPrevPage) {
-            btnPrevPage.addEventListener('click', () => {
-                if (currentEditorPageIndex > 0) {
-                    loadEditorPage(currentEditorPageIndex - 1);
-                }
-            });
-        }
-
-        // 次へボタン
-        if (btnNextPage) {
-            btnNextPage.addEventListener('click', () => {
-                // editorPageMapが存在しない場合のフォールバックも含める
-                const maxPage = (typeof editorPageMap !== 'undefined' && editorPageMap.length > 0)
-                    ? editorPageMap.length
-                    : (currentEditorPdfJsDoc ? currentEditorPdfJsDoc.numPages : 1);
-
-                if (currentEditorPageIndex < maxPage - 1) {
-                    loadEditorPage(currentEditorPageIndex + 1);
-                }
-            });
-        }
-
-        // --- Toolbar Interaction Logic ---
-
-        // Global click listener to close popups if clicked outside
-        document.addEventListener('click', (e) => {
-            if (popupTextColor && !e.target.closest('#btn-text-color-trigger') && !e.target.closest('#popup-text-color')) {
-                popupTextColor.classList.add('hidden');
-            }
-            if (popupBgColor && !e.target.closest('#btn-bg-color-trigger') && !e.target.closest('#popup-bg-color')) {
-                popupBgColor.classList.add('hidden');
+    // ズームインボタン (5%刻み)
+    if (btnZoomIn) {
+        btnZoomIn.addEventListener('click', () => {
+            if (currentZoomScale < 3.0) {
+                currentZoomScale += 0.05;
+                updateZoomDisplay();
             }
         });
+    }
 
-        function onSelectionChanged(e) {
-            const activeObj = e.selected ? e.selected[0] : fabricCanvas.getActiveObject();
-            if (activeObj) {
-                showFloatingToolbar(activeObj);
-            } else {
-                hideFloatingToolbar();
-            }
-        }
-
-        function onSelectionCleared() {
-            hideFloatingToolbar();
-        }
-
-        function onObjectModified(e) {
-            const obj = e.target;
-            if (obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
-                if (floatFontSize) {
-                    floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
-                }
-            } else if (obj && ['rect', 'circle'].includes(obj.type)) {
-                if (floatStrokeWidth) {
-                    floatStrokeWidth.value = obj.strokeWidth;
-                }
-            }
-        }
-        function showFloatingToolbar(obj) {
-            if (!obj) return;
-            floatingToolbar.classList.remove('hidden');
-
-            // テキストか図形かで表示切り替え
-            const isText = (obj.type === 'textbox' || obj.type === 'i-text');
-
-            // ★追加: 枠線色ラッパー要素の取得
-            const wrapperBorderColor = document.getElementById('wrapper-border-color');
-
-            if (isText) {
-                if (toolbarTextTools) toolbarTextTools.style.display = 'flex';
-                // ★追加: テキストでも枠線色アイコンを表示する
-                if (wrapperBorderColor) wrapperBorderColor.style.display = 'flex';
-            } else {
-                // 図形の場合
-                if (toolbarTextTools) toolbarTextTools.style.display = 'none';
-                if (wrapperBorderColor) wrapperBorderColor.style.display = 'none';
-            }
-
-            // 共通: 太さ (Stroke Width / Box Border Width)
-            if (floatStrokeWidth && floatStrokeWidth.parentElement) {
-                floatStrokeWidth.parentElement.style.display = 'flex';
-                floatStrokeWidth.parentElement.style.alignItems = 'center';
-
-                const currentVal = isText ? (obj.boxBorderWidth || 0) : (obj.strokeWidth || 0);
-                floatStrokeWidth.value = currentVal;
-            }
-
-            // --- Sync Values ---
-            // Font Size (Text Only)
-            if (isText) {
-                if (floatFontSize && floatFontSize.parentElement) {
-                    floatFontSize.parentElement.style.display = 'flex';
-                    floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
-                }
-
-                if (floatTextColor) {
-                    const textColor = obj.fill || '#000000';
-                    floatTextColor.value = typeof textColor === 'string' ? textColor : '#000000';
-                    if (indicatorTextColor) indicatorTextColor.style.backgroundColor = floatTextColor.value;
-                    if (btnTextColorTrigger) btnTextColorTrigger.parentElement.title = "文字色";
-                }
-                // Formatting
-                if (btnBold) {
-                    btnBold.classList.toggle('active', obj.fontWeight === 'bold');
-                    btnBold.style.display = 'flex';
-                }
-                if (btnItalic) {
-                    btnItalic.classList.toggle('active', obj.fontStyle === 'italic');
-                    btnItalic.style.display = 'flex';
-                }
-                if (btnUnderline) {
-                    btnUnderline.classList.toggle('active', !!obj.underline);
-                    btnUnderline.style.display = 'flex';
-                }
-                // Alignment
-                if (btnAlignLeft) {
-                    btnAlignLeft.classList.toggle('active', obj.textAlign === 'left');
-                    btnAlignLeft.parentElement.style.display = 'flex';
-                }
-                if (btnAlignCenter) btnAlignCenter.classList.toggle('active', obj.textAlign === 'center');
-                if (btnAlignRight) btnAlignRight.classList.toggle('active', obj.textAlign === 'right');
-
-                // ★追加: 垂直揃えボタンの状態更新
-                const currentValign = obj.verticalAlign || 'top';
-                updateVerticalAlignUI(currentValign);
-                // 垂直揃えボタンの表示制御
-                if (btnValignTop && btnValignTop.parentElement) {
-                    btnValignTop.parentElement.style.display = 'flex';
-                }
-
-            } else {
-                // Shape
-                if (floatFontSize && floatFontSize.parentElement) floatFontSize.parentElement.style.display = 'none';
-                if (btnBold) btnBold.style.display = 'none';
-                if (btnItalic) btnItalic.style.display = 'none';
-                if (btnUnderline) btnUnderline.style.display = 'none';
-                if (btnAlignLeft && btnAlignLeft.parentElement) btnAlignLeft.parentElement.style.display = 'none';
-                // ★追加
-                if (btnValignTop && btnValignTop.parentElement) btnValignTop.parentElement.style.display = 'none';
-
-                if (floatTextColor) {
-                    const stroke = obj.stroke || '#000000';
-                    floatTextColor.value = stroke;
-                    if (indicatorTextColor) indicatorTextColor.style.backgroundColor = stroke;
-                    if (btnTextColorTrigger) btnTextColorTrigger.parentElement.title = "枠線の色";
-                }
-            }
-
-            // Common Color Logic (Background/Fill)
-            const bgColor = isText ? (obj.backgroundColor || 'transparent') : (obj.fill || 'transparent');
-
-            if (!bgColor || bgColor === 'transparent') {
-                if (floatBgColor) floatBgColor.value = '#ffffff'; // Default
-                if (bgOpacity) bgOpacity.value = 0;
-                if (indicatorBgColor) {
-                    indicatorBgColor.style.backgroundColor = 'transparent';
-                    indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')'; // Checker
-                }
-            } else {
-                // Parse RGBA or Hex
-                if (bgColor.startsWith('rgba')) {
-                    // Extract alpha
-                    const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                    if (match) {
-                        const r = parseInt(match[1]);
-                        const g = parseInt(match[2]);
-                        const b = parseInt(match[3]);
-                        const a = match[4] !== undefined ? parseFloat(match[4]) : 1;
-
-                        if (floatBgColor) floatBgColor.value = rgbToHex(r, g, b);
-                        if (bgOpacity) bgOpacity.value = a;
-                        if (indicatorBgColor) {
-                            indicatorBgColor.style.backgroundColor = bgColor;
-                            indicatorBgColor.style.backgroundImage = 'none';
-                        }
-                    }
-                } else {
-                    // Hex or Name
-                    if (floatBgColor) floatBgColor.value = bgColor; // Assuming Hex for simplicity
-                    if (bgOpacity) bgOpacity.value = 1;
-                    if (indicatorBgColor) {
-                        indicatorBgColor.style.backgroundColor = bgColor;
-                        indicatorBgColor.style.backgroundImage = 'none';
-                    }
-                }
-            }
-
-            if (btnBgColorTrigger) btnBgColorTrigger.parentElement.title = isText ? "背景色" : "塗りつぶし色";
-
-            // Show Color controls
-            if (btnTextColorTrigger && btnTextColorTrigger.parentElement) btnTextColorTrigger.parentElement.style.display = 'flex';
-            if (btnBgColorTrigger && btnBgColorTrigger.parentElement) btnBgColorTrigger.parentElement.style.display = 'flex';
-
-            updateToolbarPosition();
-        }
-
-        function hideFloatingToolbar() {
-            if (floatingToolbar) floatingToolbar.classList.add('hidden');
-            if (popupTextColor) popupTextColor.classList.add('hidden');
-            if (popupBgColor) popupBgColor.classList.add('hidden');
-        }
-
-        function updateToolbarPosition() {
-            if (floatingToolbar.classList.contains('hidden')) return;
-            const activeObj = fabricCanvas.getActiveObject();
-            if (!activeObj) return;
-
-            // 1. キャンバスラッパーの画面上の位置を取得（スクロールやCSS変形を含む正確な位置）
-            const wrapperRect = canvasWrapper.getBoundingClientRect();
-
-            // 2. オブジェクトのキャンバス内座標を取得
-            const bound = activeObj.getBoundingRect();
-
-            const toolbarWidth = floatingToolbar.offsetWidth;
-            const toolbarHeight = floatingToolbar.offsetHeight;
-            const windowWidth = window.innerWidth;
-            const windowHeight = window.innerHeight;
-
-            // 3. 画面上の絶対座標（fixed用）を計算
-            // 重要: CSSでzoomしているため、オブジェクトの座標もscale倍する必要がある
-            // オブジェクトの中心X座標 = キャンバス左端 + (オブジェクト左端 * ズーム) + (オブジェクト幅 * ズーム / 2)
-            let left = wrapperRect.left + (bound.left * currentZoomScale) + ((bound.width * currentZoomScale) / 2) - (toolbarWidth / 2);
-
-            // オブジェクトの上端Y座標 = キャンバス上端 + (オブジェクト上端 * ズーム)
-            // ツールバーはオブジェクトの上に表示
-            let top = wrapperRect.top + (bound.top * currentZoomScale) - toolbarHeight - 10;
-
-            // --- 画面外へのはみ出し補正 (Viewport基準) ---
-
-            // A. 左端の補正
-            if (left < 10) {
-                left = 10;
-            }
-
-            // B. 右端の補正
-            if (left + toolbarWidth > windowWidth - 10) {
-                left = windowWidth - 10 - toolbarWidth;
-            }
-
-            // C. 上端の補正 (画面上にはみ出る場合はオブジェクトの下に出す)
-            if (top < 10) {
-                top = wrapperRect.top + ((bound.top + bound.height) * currentZoomScale) + 10;
-            }
-
-            // 座標を適用
-            floatingToolbar.style.top = `${top}px`;
-            floatingToolbar.style.left = `${left}px`;
-
-            // ポップアップの向き自動調整
-            const shouldOpenDown = top < 300;
-            const popups = [popupTextColor, popupBgColor];
-            if (typeof popupBorderColor !== 'undefined') popups.push(popupBorderColor);
-            if (typeof popupAddShape !== 'undefined') popups.push(popupAddShape);
-
-            popups.forEach(popup => {
-                if (popup) {
-                    if (shouldOpenDown) {
-                        popup.classList.add('opens-down');
-                    } else {
-                        popup.classList.remove('opens-down');
-                    }
-                }
-            });
-        }
-
-        function rgbToHex(r, g, b) {
-            return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-        }
-
-        function hexToRgba(hex, alpha) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
-
-        // --- Creation Logic ---
-
-        // --- 新しい図形メニューの制御 ---
-        // Shape Menu
-        document.addEventListener('click', (e) => {
-            if (popupAddShape && !e.target.closest('#btn-add-shape-trigger')) {
-                popupAddShape.classList.add('hidden');
+    // ズームアウトボタン (5%刻み)
+    if (btnZoomOut) {
+        btnZoomOut.addEventListener('click', () => {
+            if (currentZoomScale > 0.3) {
+                currentZoomScale -= 0.05;
+                updateZoomDisplay();
             }
         });
+    }
 
-        if (btnAddShapeTrigger) {
-            btnAddShapeTrigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                popupAddShape.classList.toggle('hidden');
-            });
-        }
-
-        function selectShapeTool(toolType) {
-            currentEditorTool = toolType;
-            if (fabricCanvas) {
-                fabricCanvas.defaultCursor = 'crosshair';
-                fabricCanvas.discardActiveObject();
-                fabricCanvas.renderAll();
-            }
-            popupAddShape.classList.add('hidden');
-            resetToolButtons();
-            btnAddShapeTrigger.classList.remove('is-outlined');
-            btnAddShapeTrigger.classList.add('is-primary');
-        }
-
-        if (btnShapeRect) btnShapeRect.addEventListener('click', () => selectShapeTool('rect'));
-        if (btnShapeCircle) btnShapeCircle.addEventListener('click', () => selectShapeTool('circle'));
-
-
-        function resetToolButtons() {
-            const txtBtn = document.getElementById('btn-add-text');
-            if (txtBtn) { txtBtn.classList.remove('is-primary'); txtBtn.classList.add('is-outlined'); }
-            if (btnAddShapeTrigger) { btnAddShapeTrigger.classList.remove('is-primary'); btnAddShapeTrigger.classList.add('is-outlined'); }
-        }
-
-        // --- UI Event Listeners ---
-
-
-        // --- UI Event Listeners ---
-
-        // --- Toolbar Interaction Handlers ---
-
-        // Toggle Popups
-        // Toggle Popups
-        btnTextColorTrigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            popupBgColor.classList.add('hidden');
-            popupTextColor.classList.toggle('hidden');
-        });
-
-        btnBgColorTrigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            popupTextColor.classList.add('hidden');
-            popupBgColor.classList.toggle('hidden');
-        });
-
-
-        // Prevent popup close when clicking inside
-        popupTextColor.addEventListener('click', (e) => e.stopPropagation());
-        popupBgColor.addEventListener('click', (e) => e.stopPropagation());
-
-        // Presets Logic
-        const presetSwatches = document.querySelectorAll('.color-swatch');
-        presetSwatches.forEach(swatch => {
-            swatch.addEventListener('click', () => {
-                const color = swatch.dataset.color;
-                // Determine which popup is active to know if Text or Bg
-                if (!popupTextColor.classList.contains('hidden')) {
-                    // Text Color
-                    updateTextColor(color);
-                    floatTextColor.value = color; // Sync picker if possible (might fail for transparent but text usually isn't)
-                } else if (!popupBgColor.classList.contains('hidden')) {
-                    // Bg Color
-                    if (color === 'transparent') {
-                        updateBgColor('transparent', 0);
-                        floatBgColor.value = '#ffffff';
-                        bgOpacity.value = 0;
-                    } else {
-                        updateBgColor(color, 1);
-                        floatBgColor.value = color;
-                        bgOpacity.value = 1;
-                    }
-                }
-            });
-        });
-
-        // Style Toggles
-        btnBold.addEventListener('click', () => toggleStyle('fontWeight', 'bold', 'normal', btnBold));
-        btnItalic.addEventListener('click', () => toggleStyle('fontStyle', 'italic', 'normal', btnItalic));
-        btnUnderline.addEventListener('click', () => {
-            const activeObj = fabricCanvas.getActiveObject();
-            if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-                const newVal = !activeObj.underline;
-                activeObj.set('underline', newVal);
-                fabricCanvas.renderAll();
-                btnUnderline.classList.toggle('active', newVal);
-            }
-        });
-
-        function toggleStyle(prop, activeVal, inactiveVal, btn) {
-            const activeObj = fabricCanvas.getActiveObject();
-            if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-                const current = activeObj[prop];
-                const newVal = current === activeVal ? inactiveVal : activeVal;
-                activeObj.set(prop, newVal);
-                fabricCanvas.renderAll();
-                btn.classList.toggle('active', newVal === activeVal);
-            }
-        }
-
-        // Alignment
-        btnAlignLeft.addEventListener('click', () => setAlign('left'));
-        btnAlignCenter.addEventListener('click', () => setAlign('center'));
-        btnAlignRight.addEventListener('click', () => setAlign('right'));
-
-        function setAlign(align) {
-            const activeObj = fabricCanvas.getActiveObject();
-            if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-                activeObj.set('textAlign', align);
-                fabricCanvas.renderAll();
-                // Update UI
-                btnAlignLeft.classList.toggle('active', align === 'left');
-                btnAlignCenter.classList.toggle('active', align === 'center');
-                btnAlignRight.classList.toggle('active', align === 'right');
-            }
-        }
-
-        // --- Vertical Alignment (垂直揃え) ---
-        if (btnValignTop) btnValignTop.addEventListener('click', () => setVerticalAlign('top'));
-        if (btnValignMiddle) btnValignMiddle.addEventListener('click', () => setVerticalAlign('middle'));
-        if (btnValignBottom) btnValignBottom.addEventListener('click', () => setVerticalAlign('bottom'));
-
-        function setVerticalAlign(align) {
-            const activeObj = fabricCanvas.getActiveObject();
-            if (activeObj && (activeObj.type === 'textbox')) {
-                // プロパティをセットし、キャッシュ更新フラグを立てる
-                activeObj.set({
-                    'verticalAlign': align,
-                    'dirty': true
-                });
-                fabricCanvas.requestRenderAll();
-                saveHistory();
-
-                // UI更新
-                updateVerticalAlignUI(align);
-            }
-        }
-
-        function updateVerticalAlignUI(align) {
-            if (btnValignTop) btnValignTop.classList.toggle('active', align === 'top' || !align); // デフォルトtop
-            if (btnValignMiddle) btnValignMiddle.classList.toggle('active', align === 'middle');
-            if (btnValignBottom) btnValignBottom.classList.toggle('active', align === 'bottom');
-        }
-
-        // Font Size
-        floatFontSize.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value, 10);
-            const activeObj = fabricCanvas.getActiveObject();
-            if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
-                activeObj.set({
-                    fontSize: val,
-                    scaleX: 1,
-                    scaleY: 1
-                });
-                fabricCanvas.renderAll();
-            }
-        });
-
-        // Stroke/Border Width
-        if (floatStrokeWidth) {
-            floatStrokeWidth.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value, 10);
-
-                // 単一選択か複数選択かに関わらず、すべての対象を取得
-                const activeObjects = fabricCanvas.getActiveObjects();
-
-                if (activeObjects.length > 0) {
-                    activeObjects.forEach(obj => {
-                        if (obj.type === 'textbox' || obj.type === 'i-text') {
-                            // テキストボックスは独自の枠線プロパティ
-                            obj.set({
-                                'boxBorderWidth': val,
-                                'dirty': true
-                            });
-                        } else {
-                            // 図形は標準の枠線プロパティ
-                            obj.set('strokeWidth', val);
-                        }
-                    });
-
-                    fabricCanvas.requestRenderAll();
-                    saveHistory(); // 履歴に保存
-                }
-            });
-        }
-
-        // 枠線の色変更 (テキスト用)
-        if (floatBorderColor) {
-            floatBorderColor.addEventListener('input', (e) => {
-                const val = e.target.value;
-                const activeObj = fabricCanvas.getActiveObject();
-                if (activeObj && activeObj.type === 'textbox') {
-                    activeObj.set({
-                        'boxBorderColor': val,
-                        'dirty': true
-                    });
-                    indicatorBorderColor.style.backgroundColor = val;
-                    fabricCanvas.renderAll();
-                }
-            });
-        }
-        // 枠線色ポップアップの開閉
-        if (btnBorderColorTrigger) {
-            btnBorderColorTrigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (popupBorderColor) popupBorderColor.classList.toggle('hidden');
-                // 他を閉じる
-                if (popupTextColor) popupTextColor.classList.add('hidden');
-                if (popupBgColor) popupBgColor.classList.add('hidden');
-            });
-        }
-
-        // 枠線プリセット
-        if (popupBorderColor) {
-            const borderSwatches = popupBorderColor.querySelectorAll('.color-swatch');
-            borderSwatches.forEach(swatch => {
-                swatch.addEventListener('click', () => {
-                    const color = swatch.dataset.color;
-                    const activeObj = fabricCanvas.getActiveObject();
-                    if (activeObj && activeObj.type === 'textbox') {
-                        activeObj.set({
-                            'boxBorderColor': color,
-                            'dirty': true
-                        });
-                        if (color === 'transparent') {
-                            activeObj.set('boxBorderWidth', 0); // 透明なら太さ0
-                            floatStrokeWidth.value = 0;
-                        }
-                        if (floatBorderColor) floatBorderColor.value = (color === 'transparent') ? '#000000' : color;
-                        if (indicatorBorderColor) indicatorBorderColor.style.backgroundColor = color;
-                        fabricCanvas.renderAll();
-                    }
-                });
-            });
-        }
-
-        // Text Color Input
-        floatTextColor.addEventListener('input', (e) => {
-            updateTextColor(e.target.value);
-        });
-
-        function updateTextColor(val) {
-            const activeObj = fabricCanvas.getActiveObject();
-            if (activeObj) {
-                if (activeObj.type === 'rect' || activeObj.type === 'circle') {
-                    activeObj.set('stroke', val);
-                } else {
-                    activeObj.set('fill', val);
-                }
-                indicatorTextColor.style.backgroundColor = val;
-                fabricCanvas.renderAll();
-            }
-        }
-
-        // Bg Color Input
-        floatBgColor.addEventListener('input', (e) => {
-            updateBgColor(e.target.value, parseFloat(bgOpacity.value));
-        });
-
-        // Opacity Input
-        bgOpacity.addEventListener('input', (e) => {
-            updateBgColor(floatBgColor.value, parseFloat(e.target.value));
-        });
-
-        function updateBgColor(hexColor, alpha) {
-            const activeObj = fabricCanvas.getActiveObject();
-            if (!activeObj) return;
-
-            let finalColor;
-            if (alpha === 0 || hexColor === 'transparent') {
-                finalColor = 'transparent';
-                indicatorBgColor.style.backgroundColor = 'transparent';
-                indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')';
-            } else {
-                finalColor = hexToRgba(hexColor, alpha);
-                indicatorBgColor.style.backgroundColor = finalColor;
-                indicatorBgColor.style.backgroundImage = 'none';
-            }
-
-            if (activeObj.type === 'rect' || activeObj.type === 'circle') {
-                activeObj.set('fill', finalColor);
-            } else {
-                activeObj.set('backgroundColor', finalColor);
-            }
-            fabricCanvas.renderAll();
-        }
-
-        if (btnDeleteObj) {
-            // 1. ボタン要素を複製し、古いイベントリスナーを全て強制削除する
-            const newBtn = btnDeleteObj.cloneNode(true);
-            if (btnDeleteObj.parentNode) {
-                btnDeleteObj.parentNode.replaceChild(newBtn, btnDeleteObj);
-            }
-
-            // 2. 新しいボタンに mousedown イベントを設定（クリック競合を回避）
-            newBtn.addEventListener('mousedown', (e) => {
-                // フォーカス移動とイベント伝播を確実に止める
-                e.preventDefault();
-                e.stopPropagation();
-
-                if (!fabricCanvas) return;
-
-                // 選択されている全オブジェクトを取得（単一・複数対応）
-                const activeObjects = fabricCanvas.getActiveObjects();
-
-                if (activeObjects && activeObjects.length > 0) {
-                    // 3. 処理前に選択状態を解除（エラー防止）
-                    fabricCanvas.discardActiveObject();
-
-                    // 4. オブジェクトを削除
-                    activeObjects.forEach((obj) => {
-                        fabricCanvas.remove(obj);
-                    });
-
-                    // 5. 画面更新と履歴保存
-                    fabricCanvas.requestRenderAll();
-                    hideFloatingToolbar();
-                    saveHistory();
-                }
-            });
-        }
-
-        // 他のツールボタンにも同様の処置を適用
-        document.querySelectorAll('#floating-toolbar .btn-tool, #floating-toolbar .btn.is-text').forEach(btn => {
-            btn.addEventListener('mousedown', (e) => {
-                if (e.target.tagName !== 'INPUT') {
-                    e.preventDefault();
-                }
-            });
-        });
-
-        // Sidebar Color Picker Sync removed
-
-        // btnDeleteObj Listener removed
-
-        async function loadEditorPage(index) {
-            // 現在のページ状態を保存
-            if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
-                // ★重要: メモリ爆発を防ぐため、背景画像を一時的に退避
-                const originalBg = fabricCanvas.backgroundImage;
-                fabricCanvas.backgroundImage = null;
-
-                // 背景画像抜きでJSON化
-                const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor', 'verticalAlign']);
-
-                // データを保存
-                editorPages[currentEditorPageIndex].fabricJSON = json;
-
-                // 背景画像を即座に戻す（ユーザーには気づかれない）
-                fabricCanvas.backgroundImage = originalBg;
-            }
-
-            if (index < 0 || index >= editorPageMap.length) return;
-
-            currentEditorPageIndex = index;
-            const pageInfo = editorPageMap[index];
-            const pdfJsDoc = pageInfo.pdfJsDoc;
-            const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
-            const viewport = page.getViewport({ scale: 1.5 });
-
-            // Canvas Re-initialization
-            if (fabricCanvas) {
-                fabricCanvas.clear();
-                fabricCanvas.setWidth(viewport.width);
-                fabricCanvas.setHeight(viewport.height);
-            } else {
-                // Should be initialized already but just in case
-                initializeEditor();
-                fabricCanvas.setWidth(viewport.width);
-                fabricCanvas.setHeight(viewport.height);
-            }
-
-            // Render PDF Page to Canvas Background
-            const canvasEl = document.createElement('canvas');
-            const context = canvasEl.getContext('2d');
-            canvasEl.height = viewport.height;
-            canvasEl.width = viewport.width;
-
-            await page.render({ canvasContext: context, viewport: viewport }).promise;
-
-            const bgImage = new fabric.Image(canvasEl, {
-                left: 0,
-                top: 0,
-                angle: 0,
-                opacity: 1,
-                selectable: false,
-                evented: false,
-            });
-            fabricCanvas.setBackgroundImage(bgImage, fabricCanvas.renderAll.bind(fabricCanvas));
-
-            // Restore Objects
-            // ページ切り替え時に、保存されたJSONがあれば復元
-            if (editorPages[index] && editorPages[index].fabricJSON) {
-                fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
-                    fabricCanvas.renderAll();
-                    // 今回はページ遷移で履歴はリセットする仕様とする（複雑化回避）
-                    historyStack = [];
-                    historyIndex = -1;
-                    isHistoryLocked = false;
-                    if (typeof updateHistoryUI === 'function') updateHistoryUI();
-                });
-            } else {
-                // 新規ページなので履歴リセット
-                editorPages[index] = { pageIndex: index, fabricJSON: null };
-                historyStack = [];
-                historyIndex = -1;
-                isHistoryLocked = false;
-                if (typeof updateHistoryUI === 'function') updateHistoryUI();
-            }
-
-            // ページインジケータ更新
-            if (pageIndicator) { // null check
-                pageIndicator.textContent = `Page ${index + 1} / ${editorPageMap.length}`;
-            }
-            if (btnPrevPage) btnPrevPage.disabled = index === 0;
-            if (btnNextPage) btnNextPage.disabled = index === editorPageMap.length - 1;
-
-            // サイドバーの選択状態更新
-            updateSidebarSelection(index);
-        }
-
+    // 前へボタン
+    if (btnPrevPage) {
         btnPrevPage.addEventListener('click', () => {
             if (currentEditorPageIndex > 0) {
                 loadEditorPage(currentEditorPageIndex - 1);
             }
         });
+    }
 
+    // 次へボタン
+    if (btnNextPage) {
         btnNextPage.addEventListener('click', () => {
-            if (currentEditorPageIndex < editorPageMap.length - 1) {
+            // editorPageMapが存在しない場合のフォールバックも含める
+            const maxPage = (typeof editorPageMap !== 'undefined' && editorPageMap.length > 0)
+                ? editorPageMap.length
+                : (currentEditorPdfJsDoc ? currentEditorPdfJsDoc.numPages : 1);
+
+            if (currentEditorPageIndex < maxPage - 1) {
                 loadEditorPage(currentEditorPageIndex + 1);
             }
         });
+    }
 
-        // --- Save Logic ---
-        async function saveEditedPDF() {
-            // --- 1. UI: Loading State ---
-            const btnSave = document.querySelector('#edit-action-buttons .btn.is-primary');
-            const originalBtnText = btnSave ? btnSave.innerHTML : '';
+    // --- Toolbar Interaction Logic ---
 
-            // グローバルキャッシュの初期化チェック
-            if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null;
+    // Global click listener to close popups if clicked outside
+    document.addEventListener('click', (e) => {
+        if (popupTextColor && !e.target.closest('#btn-text-color-trigger') && !e.target.closest('#popup-text-color')) {
+            popupTextColor.classList.add('hidden');
+        }
+        if (popupBgColor && !e.target.closest('#btn-bg-color-trigger') && !e.target.closest('#popup-bg-color')) {
+            popupBgColor.classList.add('hidden');
+        }
+    });
 
-            if (btnSave) {
-                btnSave.disabled = true;
+    function onSelectionChanged(e) {
+        const activeObj = e.selected ? e.selected[0] : fabricCanvas.getActiveObject();
+        if (activeObj) {
+            showFloatingToolbar(activeObj);
+        } else {
+            hideFloatingToolbar();
+        }
+    }
 
-                // ★変更: 初回（キャッシュなし）と2回目以降でメッセージを出し分ける
-                if (!window.cachedFontBytesReg) {
-                    // 初回: ダウンロードが発生するため案内を出す
-                    // ボタン内で改行して注釈を入れる
-                    btnSave.innerHTML = '<i class="material-icons result-spin">cloud_download</i> フォント準備中...<span style="font-size:0.8em; display:block;">(初回のみ時間がかかります)</span>';
-                } else {
-                    // 2回目以降: すぐ終わるのでシンプルに
-                    btnSave.innerHTML = '<i class="material-icons result-spin">sync</i> 保存中...';
-                }
+    function onSelectionCleared() {
+        hideFloatingToolbar();
+    }
 
-                document.body.style.cursor = 'wait';
+    function onObjectModified(e) {
+        const obj = e.target;
+        if (obj && (obj.type === 'textbox' || obj.type === 'i-text')) {
+            if (floatFontSize) {
+                floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
+            }
+        } else if (obj && ['rect', 'circle'].includes(obj.type)) {
+            if (floatStrokeWidth) {
+                floatStrokeWidth.value = obj.strokeWidth;
+            }
+        }
+    }
+    function showFloatingToolbar(obj) {
+        if (!obj) return;
+        floatingToolbar.classList.remove('hidden');
+
+        // テキストか図形かで表示切り替え
+        const isText = (obj.type === 'textbox' || obj.type === 'i-text');
+
+        // ★追加: 枠線色ラッパー要素の取得
+        const wrapperBorderColor = document.getElementById('wrapper-border-color');
+
+        if (isText) {
+            if (toolbarTextTools) toolbarTextTools.style.display = 'flex';
+            // ★追加: テキストでも枠線色アイコンを表示する
+            if (wrapperBorderColor) wrapperBorderColor.style.display = 'flex';
+        } else {
+            // 図形の場合
+            if (toolbarTextTools) toolbarTextTools.style.display = 'none';
+            if (wrapperBorderColor) wrapperBorderColor.style.display = 'none';
+        }
+
+        // 共通: 太さ (Stroke Width / Box Border Width)
+        if (floatStrokeWidth && floatStrokeWidth.parentElement) {
+            floatStrokeWidth.parentElement.style.display = 'flex';
+            floatStrokeWidth.parentElement.style.alignItems = 'center';
+
+            const currentVal = isText ? (obj.boxBorderWidth || 0) : (obj.strokeWidth || 0);
+            floatStrokeWidth.value = currentVal;
+        }
+
+        // --- Sync Values ---
+        // Font Size (Text Only)
+        if (isText) {
+            if (floatFontSize && floatFontSize.parentElement) {
+                floatFontSize.parentElement.style.display = 'flex';
+                floatFontSize.value = Math.round(obj.fontSize * obj.scaleX);
             }
 
-            // UI描画時間を確保（これが無いとメッセージが変わる前に処理が走ってしまう）
-            await new Promise(resolve => setTimeout(resolve, 100));
+            if (floatTextColor) {
+                const textColor = obj.fill || '#000000';
+                floatTextColor.value = typeof textColor === 'string' ? textColor : '#000000';
+                if (indicatorTextColor) indicatorTextColor.style.backgroundColor = floatTextColor.value;
+                if (btnTextColorTrigger) btnTextColorTrigger.parentElement.title = "文字色";
+            }
+            // Formatting
+            if (btnBold) {
+                btnBold.classList.toggle('active', obj.fontWeight === 'bold');
+                btnBold.style.display = 'flex';
+            }
+            if (btnItalic) {
+                btnItalic.classList.toggle('active', obj.fontStyle === 'italic');
+                btnItalic.style.display = 'flex';
+            }
+            if (btnUnderline) {
+                btnUnderline.classList.toggle('active', !!obj.underline);
+                btnUnderline.style.display = 'flex';
+            }
+            // Alignment
+            if (btnAlignLeft) {
+                btnAlignLeft.classList.toggle('active', obj.textAlign === 'left');
+                btnAlignLeft.parentElement.style.display = 'flex';
+            }
+            if (btnAlignCenter) btnAlignCenter.classList.toggle('active', obj.textAlign === 'center');
+            if (btnAlignRight) btnAlignRight.classList.toggle('active', obj.textAlign === 'right');
+
+            // ★追加: 垂直揃えボタンの状態更新
+            const currentValign = obj.verticalAlign || 'top';
+            updateVerticalAlignUI(currentValign);
+            // 垂直揃えボタンの表示制御
+            if (btnValignTop && btnValignTop.parentElement) {
+                btnValignTop.parentElement.style.display = 'flex';
+            }
+
+        } else {
+            // Shape
+            if (floatFontSize && floatFontSize.parentElement) floatFontSize.parentElement.style.display = 'none';
+            if (btnBold) btnBold.style.display = 'none';
+            if (btnItalic) btnItalic.style.display = 'none';
+            if (btnUnderline) btnUnderline.style.display = 'none';
+            if (btnAlignLeft && btnAlignLeft.parentElement) btnAlignLeft.parentElement.style.display = 'none';
+            // ★追加
+            if (btnValignTop && btnValignTop.parentElement) btnValignTop.parentElement.style.display = 'none';
+
+            if (floatTextColor) {
+                const stroke = obj.stroke || '#000000';
+                floatTextColor.value = stroke;
+                if (indicatorTextColor) indicatorTextColor.style.backgroundColor = stroke;
+                if (btnTextColorTrigger) btnTextColorTrigger.parentElement.title = "枠線の色";
+            }
+        }
+
+        // Common Color Logic (Background/Fill)
+        const bgColor = isText ? (obj.backgroundColor || 'transparent') : (obj.fill || 'transparent');
+
+        if (!bgColor || bgColor === 'transparent') {
+            if (floatBgColor) floatBgColor.value = '#ffffff'; // Default
+            if (bgOpacity) bgOpacity.value = 0;
+            if (indicatorBgColor) {
+                indicatorBgColor.style.backgroundColor = 'transparent';
+                indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')'; // Checker
+            }
+        } else {
+            // Parse RGBA or Hex
+            if (bgColor.startsWith('rgba')) {
+                // Extract alpha
+                const match = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                if (match) {
+                    const r = parseInt(match[1]);
+                    const g = parseInt(match[2]);
+                    const b = parseInt(match[3]);
+                    const a = match[4] !== undefined ? parseFloat(match[4]) : 1;
+
+                    if (floatBgColor) floatBgColor.value = rgbToHex(r, g, b);
+                    if (bgOpacity) bgOpacity.value = a;
+                    if (indicatorBgColor) {
+                        indicatorBgColor.style.backgroundColor = bgColor;
+                        indicatorBgColor.style.backgroundImage = 'none';
+                    }
+                }
+            } else {
+                // Hex or Name
+                if (floatBgColor) floatBgColor.value = bgColor; // Assuming Hex for simplicity
+                if (bgOpacity) bgOpacity.value = 1;
+                if (indicatorBgColor) {
+                    indicatorBgColor.style.backgroundColor = bgColor;
+                    indicatorBgColor.style.backgroundImage = 'none';
+                }
+            }
+        }
+
+        if (btnBgColorTrigger) btnBgColorTrigger.parentElement.title = isText ? "背景色" : "塗りつぶし色";
+
+        // Show Color controls
+        if (btnTextColorTrigger && btnTextColorTrigger.parentElement) btnTextColorTrigger.parentElement.style.display = 'flex';
+        if (btnBgColorTrigger && btnBgColorTrigger.parentElement) btnBgColorTrigger.parentElement.style.display = 'flex';
+
+        updateToolbarPosition();
+    }
+
+    function hideFloatingToolbar() {
+        if (floatingToolbar) floatingToolbar.classList.add('hidden');
+        if (popupTextColor) popupTextColor.classList.add('hidden');
+        if (popupBgColor) popupBgColor.classList.add('hidden');
+    }
+
+    function updateToolbarPosition() {
+        if (floatingToolbar.classList.contains('hidden')) return;
+        const activeObj = fabricCanvas.getActiveObject();
+        if (!activeObj) return;
+
+        // 1. キャンバスラッパーの画面上の位置を取得（スクロールやCSS変形を含む正確な位置）
+        const wrapperRect = canvasWrapper.getBoundingClientRect();
+
+        // 2. オブジェクトのキャンバス内座標を取得
+        const bound = activeObj.getBoundingRect();
+
+        const toolbarWidth = floatingToolbar.offsetWidth;
+        const toolbarHeight = floatingToolbar.offsetHeight;
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+
+        // 3. 画面上の絶対座標（fixed用）を計算
+        // 重要: CSSでzoomしているため、オブジェクトの座標もscale倍する必要がある
+        // オブジェクトの中心X座標 = キャンバス左端 + (オブジェクト左端 * ズーム) + (オブジェクト幅 * ズーム / 2)
+        let left = wrapperRect.left + (bound.left * currentZoomScale) + ((bound.width * currentZoomScale) / 2) - (toolbarWidth / 2);
+
+        // オブジェクトの上端Y座標 = キャンバス上端 + (オブジェクト上端 * ズーム)
+        // ツールバーはオブジェクトの上に表示
+        let top = wrapperRect.top + (bound.top * currentZoomScale) - toolbarHeight - 10;
+
+        // --- 画面外へのはみ出し補正 (Viewport基準) ---
+
+        // A. 左端の補正
+        if (left < 10) {
+            left = 10;
+        }
+
+        // B. 右端の補正
+        if (left + toolbarWidth > windowWidth - 10) {
+            left = windowWidth - 10 - toolbarWidth;
+        }
+
+        // C. 上端の補正 (画面上にはみ出る場合はオブジェクトの下に出す)
+        if (top < 10) {
+            top = wrapperRect.top + ((bound.top + bound.height) * currentZoomScale) + 10;
+        }
+
+        // 座標を適用
+        floatingToolbar.style.top = `${top}px`;
+        floatingToolbar.style.left = `${left}px`;
+
+        // ポップアップの向き自動調整
+        const shouldOpenDown = top < 300;
+        const popups = [popupTextColor, popupBgColor];
+        if (typeof popupBorderColor !== 'undefined') popups.push(popupBorderColor);
+        if (typeof popupAddShape !== 'undefined') popups.push(popupAddShape);
+
+        popups.forEach(popup => {
+            if (popup) {
+                if (shouldOpenDown) {
+                    popup.classList.add('opens-down');
+                } else {
+                    popup.classList.remove('opens-down');
+                }
+            }
+        });
+    }
+
+    function rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+
+    function hexToRgba(hex, alpha) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    // --- Creation Logic ---
+
+    // --- 新しい図形メニューの制御 ---
+    // Shape Menu
+    document.addEventListener('click', (e) => {
+        if (popupAddShape && !e.target.closest('#btn-add-shape-trigger')) {
+            popupAddShape.classList.add('hidden');
+        }
+    });
+
+    if (btnAddShapeTrigger) {
+        btnAddShapeTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            popupAddShape.classList.toggle('hidden');
+        });
+    }
+
+    function selectShapeTool(toolType) {
+        currentEditorTool = toolType;
+        if (fabricCanvas) {
+            fabricCanvas.defaultCursor = 'crosshair';
+            fabricCanvas.discardActiveObject();
+            fabricCanvas.renderAll();
+        }
+        popupAddShape.classList.add('hidden');
+        resetToolButtons();
+        btnAddShapeTrigger.classList.remove('is-outlined');
+        btnAddShapeTrigger.classList.add('is-primary');
+    }
+
+    if (btnShapeRect) btnShapeRect.addEventListener('click', () => selectShapeTool('rect'));
+    if (btnShapeCircle) btnShapeCircle.addEventListener('click', () => selectShapeTool('circle'));
+
+
+    function resetToolButtons() {
+        const txtBtn = document.getElementById('btn-add-text');
+        if (txtBtn) { txtBtn.classList.remove('is-primary'); txtBtn.classList.add('is-outlined'); }
+        if (btnAddShapeTrigger) { btnAddShapeTrigger.classList.remove('is-primary'); btnAddShapeTrigger.classList.add('is-outlined'); }
+    }
+
+    // --- UI Event Listeners ---
+
+
+    // --- UI Event Listeners ---
+
+    // --- Toolbar Interaction Handlers ---
+
+    // Toggle Popups
+    // Toggle Popups
+    btnTextColorTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popupBgColor.classList.add('hidden');
+        popupTextColor.classList.toggle('hidden');
+    });
+
+    btnBgColorTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        popupTextColor.classList.add('hidden');
+        popupBgColor.classList.toggle('hidden');
+    });
+
+
+    // Prevent popup close when clicking inside
+    popupTextColor.addEventListener('click', (e) => e.stopPropagation());
+    popupBgColor.addEventListener('click', (e) => e.stopPropagation());
+
+    // Presets Logic
+    const presetSwatches = document.querySelectorAll('.color-swatch');
+    presetSwatches.forEach(swatch => {
+        swatch.addEventListener('click', () => {
+            const color = swatch.dataset.color;
+            // Determine which popup is active to know if Text or Bg
+            if (!popupTextColor.classList.contains('hidden')) {
+                // Text Color
+                updateTextColor(color);
+                floatTextColor.value = color; // Sync picker if possible (might fail for transparent but text usually isn't)
+            } else if (!popupBgColor.classList.contains('hidden')) {
+                // Bg Color
+                if (color === 'transparent') {
+                    updateBgColor('transparent', 0);
+                    floatBgColor.value = '#ffffff';
+                    bgOpacity.value = 0;
+                } else {
+                    updateBgColor(color, 1);
+                    floatBgColor.value = color;
+                    bgOpacity.value = 1;
+                }
+            }
+        });
+    });
+
+    // Style Toggles
+    btnBold.addEventListener('click', () => toggleStyle('fontWeight', 'bold', 'normal', btnBold));
+    btnItalic.addEventListener('click', () => toggleStyle('fontStyle', 'italic', 'normal', btnItalic));
+    btnUnderline.addEventListener('click', () => {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            const newVal = !activeObj.underline;
+            activeObj.set('underline', newVal);
+            fabricCanvas.renderAll();
+            btnUnderline.classList.toggle('active', newVal);
+        }
+    });
+
+    function toggleStyle(prop, activeVal, inactiveVal, btn) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            const current = activeObj[prop];
+            const newVal = current === activeVal ? inactiveVal : activeVal;
+            activeObj.set(prop, newVal);
+            fabricCanvas.renderAll();
+            btn.classList.toggle('active', newVal === activeVal);
+        }
+    }
+
+    // Alignment
+    btnAlignLeft.addEventListener('click', () => setAlign('left'));
+    btnAlignCenter.addEventListener('click', () => setAlign('center'));
+    btnAlignRight.addEventListener('click', () => setAlign('right'));
+
+    function setAlign(align) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            activeObj.set('textAlign', align);
+            fabricCanvas.renderAll();
+            // Update UI
+            btnAlignLeft.classList.toggle('active', align === 'left');
+            btnAlignCenter.classList.toggle('active', align === 'center');
+            btnAlignRight.classList.toggle('active', align === 'right');
+        }
+    }
+
+    // --- Vertical Alignment (垂直揃え) ---
+    if (btnValignTop) btnValignTop.addEventListener('click', () => setVerticalAlign('top'));
+    if (btnValignMiddle) btnValignMiddle.addEventListener('click', () => setVerticalAlign('middle'));
+    if (btnValignBottom) btnValignBottom.addEventListener('click', () => setVerticalAlign('bottom'));
+
+    function setVerticalAlign(align) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox')) {
+            // プロパティをセットし、キャッシュ更新フラグを立てる
+            activeObj.set({
+                'verticalAlign': align,
+                'dirty': true
+            });
+            fabricCanvas.requestRenderAll();
+            saveHistory();
+
+            // UI更新
+            updateVerticalAlignUI(align);
+        }
+    }
+
+    function updateVerticalAlignUI(align) {
+        if (btnValignTop) btnValignTop.classList.toggle('active', align === 'top' || !align); // デフォルトtop
+        if (btnValignMiddle) btnValignMiddle.classList.toggle('active', align === 'middle');
+        if (btnValignBottom) btnValignBottom.classList.toggle('active', align === 'bottom');
+    }
+
+    // Font Size
+    floatFontSize.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj && (activeObj.type === 'textbox' || activeObj.type === 'i-text')) {
+            activeObj.set({
+                fontSize: val,
+                scaleX: 1,
+                scaleY: 1
+            });
+            fabricCanvas.renderAll();
+        }
+    });
+
+    // Stroke/Border Width
+    if (floatStrokeWidth) {
+        floatStrokeWidth.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value, 10);
+
+            // 単一選択か複数選択かに関わらず、すべての対象を取得
+            const activeObjects = fabricCanvas.getActiveObjects();
+
+            if (activeObjects.length > 0) {
+                activeObjects.forEach(obj => {
+                    if (obj.type === 'textbox' || obj.type === 'i-text') {
+                        // テキストボックスは独自の枠線プロパティ
+                        obj.set({
+                            'boxBorderWidth': val,
+                            'dirty': true
+                        });
+                    } else {
+                        // 図形は標準の枠線プロパティ
+                        obj.set('strokeWidth', val);
+                    }
+                });
+
+                fabricCanvas.requestRenderAll();
+                saveHistory(); // 履歴に保存
+            }
+        });
+    }
+
+    // 枠線の色変更 (テキスト用)
+    if (floatBorderColor) {
+        floatBorderColor.addEventListener('input', (e) => {
+            const val = e.target.value;
+            const activeObj = fabricCanvas.getActiveObject();
+            if (activeObj && activeObj.type === 'textbox') {
+                activeObj.set({
+                    'boxBorderColor': val,
+                    'dirty': true
+                });
+                indicatorBorderColor.style.backgroundColor = val;
+                fabricCanvas.renderAll();
+            }
+        });
+    }
+    // 枠線色ポップアップの開閉
+    if (btnBorderColorTrigger) {
+        btnBorderColorTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (popupBorderColor) popupBorderColor.classList.toggle('hidden');
+            // 他を閉じる
+            if (popupTextColor) popupTextColor.classList.add('hidden');
+            if (popupBgColor) popupBgColor.classList.add('hidden');
+        });
+    }
+
+    // 枠線プリセット
+    if (popupBorderColor) {
+        const borderSwatches = popupBorderColor.querySelectorAll('.color-swatch');
+        borderSwatches.forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                const color = swatch.dataset.color;
+                const activeObj = fabricCanvas.getActiveObject();
+                if (activeObj && activeObj.type === 'textbox') {
+                    activeObj.set({
+                        'boxBorderColor': color,
+                        'dirty': true
+                    });
+                    if (color === 'transparent') {
+                        activeObj.set('boxBorderWidth', 0); // 透明なら太さ0
+                        floatStrokeWidth.value = 0;
+                    }
+                    if (floatBorderColor) floatBorderColor.value = (color === 'transparent') ? '#000000' : color;
+                    if (indicatorBorderColor) indicatorBorderColor.style.backgroundColor = color;
+                    fabricCanvas.renderAll();
+                }
+            });
+        });
+    }
+
+    // Text Color Input
+    floatTextColor.addEventListener('input', (e) => {
+        updateTextColor(e.target.value);
+    });
+
+    function updateTextColor(val) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (activeObj) {
+            if (activeObj.type === 'rect' || activeObj.type === 'circle') {
+                activeObj.set('stroke', val);
+            } else {
+                activeObj.set('fill', val);
+            }
+            indicatorTextColor.style.backgroundColor = val;
+            fabricCanvas.renderAll();
+        }
+    }
+
+    // Bg Color Input
+    floatBgColor.addEventListener('input', (e) => {
+        updateBgColor(e.target.value, parseFloat(bgOpacity.value));
+    });
+
+    // Opacity Input
+    bgOpacity.addEventListener('input', (e) => {
+        updateBgColor(floatBgColor.value, parseFloat(e.target.value));
+    });
+
+    function updateBgColor(hexColor, alpha) {
+        const activeObj = fabricCanvas.getActiveObject();
+        if (!activeObj) return;
+
+        let finalColor;
+        if (alpha === 0 || hexColor === 'transparent') {
+            finalColor = 'transparent';
+            indicatorBgColor.style.backgroundColor = 'transparent';
+            indicatorBgColor.style.backgroundImage = 'url(\'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAIklEQVQIW2NkQAKrVq36zwjjgzjwqUAXYwYyeLIItYMNKBkAjxsI8j+dUwAAAABJRU5ErkJggg==\')';
+        } else {
+            finalColor = hexToRgba(hexColor, alpha);
+            indicatorBgColor.style.backgroundColor = finalColor;
+            indicatorBgColor.style.backgroundImage = 'none';
+        }
+
+        if (activeObj.type === 'rect' || activeObj.type === 'circle') {
+            activeObj.set('fill', finalColor);
+        } else {
+            activeObj.set('backgroundColor', finalColor);
+        }
+        fabricCanvas.renderAll();
+    }
+
+    if (btnDeleteObj) {
+        // 1. ボタン要素を複製し、古いイベントリスナーを全て強制削除する
+        const newBtn = btnDeleteObj.cloneNode(true);
+        if (btnDeleteObj.parentNode) {
+            btnDeleteObj.parentNode.replaceChild(newBtn, btnDeleteObj);
+        }
+
+        // 2. 新しいボタンに mousedown イベントを設定（クリック競合を回避）
+        newBtn.addEventListener('mousedown', (e) => {
+            // フォーカス移動とイベント伝播を確実に止める
+            e.preventDefault();
+            e.stopPropagation();
+
+            if (!fabricCanvas) return;
+
+            // 選択されている全オブジェクトを取得（単一・複数対応）
+            const activeObjects = fabricCanvas.getActiveObjects();
+
+            if (activeObjects && activeObjects.length > 0) {
+                // 3. 処理前に選択状態を解除（エラー防止）
+                fabricCanvas.discardActiveObject();
+
+                // 4. オブジェクトを削除
+                activeObjects.forEach((obj) => {
+                    fabricCanvas.remove(obj);
+                });
+
+                // 5. 画面更新と履歴保存
+                fabricCanvas.requestRenderAll();
+                hideFloatingToolbar();
+                saveHistory();
+            }
+        });
+    }
+
+    // 他のツールボタンにも同様の処置を適用
+    document.querySelectorAll('#floating-toolbar .btn-tool, #floating-toolbar .btn.is-text').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+            if (e.target.tagName !== 'INPUT') {
+                e.preventDefault();
+            }
+        });
+    });
+
+    // Sidebar Color Picker Sync removed
+
+    // btnDeleteObj Listener removed
+
+    async function loadEditorPage(index) {
+        // 現在のページ状態を保存
+        if (currentEditorPageIndex >= 0 && editorPages[currentEditorPageIndex] && fabricCanvas) {
+            // ★重要: メモリ爆発を防ぐため、背景画像を一時的に退避
+            const originalBg = fabricCanvas.backgroundImage;
+            fabricCanvas.backgroundImage = null;
+
+            // 背景画像抜きでJSON化
+            const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor', 'verticalAlign']);
+
+            // データを保存
+            editorPages[currentEditorPageIndex].fabricJSON = json;
+
+            // 背景画像を即座に戻す（ユーザーには気づかれない）
+            fabricCanvas.backgroundImage = originalBg;
+        }
+
+        if (index < 0 || index >= editorPageMap.length) return;
+
+        currentEditorPageIndex = index;
+        const pageInfo = editorPageMap[index];
+        const pdfJsDoc = pageInfo.pdfJsDoc;
+        const page = await pdfJsDoc.getPage(pageInfo.pageIndex + 1);
+        const viewport = page.getViewport({ scale: 1.5 });
+
+        // Canvas Re-initialization
+        if (fabricCanvas) {
+            fabricCanvas.clear();
+            fabricCanvas.setWidth(viewport.width);
+            fabricCanvas.setHeight(viewport.height);
+        } else {
+            // Should be initialized already but just in case
+            initializeEditor();
+            fabricCanvas.setWidth(viewport.width);
+            fabricCanvas.setHeight(viewport.height);
+        }
+
+        // Render PDF Page to Canvas Background
+        const canvasEl = document.createElement('canvas');
+        const context = canvasEl.getContext('2d');
+        canvasEl.height = viewport.height;
+        canvasEl.width = viewport.width;
+
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+        const bgImage = new fabric.Image(canvasEl, {
+            left: 0,
+            top: 0,
+            angle: 0,
+            opacity: 1,
+            selectable: false,
+            evented: false,
+        });
+        fabricCanvas.setBackgroundImage(bgImage, fabricCanvas.renderAll.bind(fabricCanvas));
+
+        // Restore Objects
+        // ページ切り替え時に、保存されたJSONがあれば復元
+        if (editorPages[index] && editorPages[index].fabricJSON) {
+            fabricCanvas.loadFromJSON(editorPages[index].fabricJSON, () => {
+                fabricCanvas.renderAll();
+                // 今回はページ遷移で履歴はリセットする仕様とする（複雑化回避）
+                historyStack = [];
+                historyIndex = -1;
+                isHistoryLocked = false;
+                if (typeof updateHistoryUI === 'function') updateHistoryUI();
+            });
+        } else {
+            // 新規ページなので履歴リセット
+            editorPages[index] = { pageIndex: index, fabricJSON: null };
+            historyStack = [];
+            historyIndex = -1;
+            isHistoryLocked = false;
+            if (typeof updateHistoryUI === 'function') updateHistoryUI();
+        }
+
+        // ページインジケータ更新
+        if (pageIndicator) { // null check
+            pageIndicator.textContent = `Page ${index + 1} / ${editorPageMap.length}`;
+        }
+        if (btnPrevPage) btnPrevPage.disabled = index === 0;
+        if (btnNextPage) btnNextPage.disabled = index === editorPageMap.length - 1;
+
+        // サイドバーの選択状態更新
+        updateSidebarSelection(index);
+    }
+
+    btnPrevPage.addEventListener('click', () => {
+        if (currentEditorPageIndex > 0) {
+            loadEditorPage(currentEditorPageIndex - 1);
+        }
+    });
+
+    btnNextPage.addEventListener('click', () => {
+        if (currentEditorPageIndex < editorPageMap.length - 1) {
+            loadEditorPage(currentEditorPageIndex + 1);
+        }
+    });
+
+    // --- Save Logic ---
+    async function saveEditedPDF() {
+        // --- 1. UI: Loading State ---
+        const btnSave = document.querySelector('#edit-action-buttons .btn.is-primary');
+        const originalBtnText = btnSave ? btnSave.innerHTML : '';
+
+        // グローバルキャッシュの初期化チェック
+        if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null;
+
+        if (btnSave) {
+            btnSave.disabled = true;
+
+            // ★変更: 初回（キャッシュなし）と2回目以降でメッセージを出し分ける
+            if (!window.cachedFontBytesReg) {
+                // 初回: ダウンロードが発生するため案内を出す
+                // ボタン内で改行して注釈を入れる
+                btnSave.innerHTML = '<i class="material-icons result-spin">cloud_download</i> フォント準備中...<span style="font-size:0.8em; display:block;">(初回のみ時間がかかります)</span>';
+            } else {
+                // 2回目以降: すぐ終わるのでシンプルに
+                btnSave.innerHTML = '<i class="material-icons result-spin">sync</i> 保存中...';
+            }
+
+            document.body.style.cursor = 'wait';
+        }
+
+        // UI描画時間を確保（これが無いとメッセージが変わる前に処理が走ってしまう）
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        try {
+            // --- 2. メモリ対策済みJSON保存 ---
+            if (fabricCanvas) {
+                const originalBg = fabricCanvas.backgroundImage;
+                fabricCanvas.backgroundImage = null;
+                const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor', 'verticalAlign']);
+                fabricCanvas.backgroundImage = originalBg;
+                editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
+            }
+
+            // --- 3. PDF準備 ---
+            const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
+            pdfDoc.registerFontkit(fontkit);
+
+            // ★変更: メモリキャッシュ機能付きのフォント読み込み
+            // 2回目以降はダウンロードせず、メモリ内のデータを使うため高速化します
+            const fontUrlReg = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Regular.otf';
+            const fontUrlBold = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Bold.otf';
+
+            let fontRegular = null;
+            let fontBold = null;
+
+            // グローバルキャッシュの初期化（未定義の場合）
+            // if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null; // Moved to top of function
+            // if (!window.cachedFontBytesBold) window.cachedFontBytesBold = null; // Removed, only check for Reg
+
+            // タイムアウト付きフェッチ関数
+            const fetchWithTimeout = (url, ms) => {
+                const controller = new AbortController();
+                const id = setTimeout(() => controller.abort(), ms);
+                return fetch(url, { signal: controller.signal })
+                    .then(res => {
+                        clearTimeout(id);
+                        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                        return res.arrayBuffer();
+                    });
+            };
 
             try {
-                // --- 2. メモリ対策済みJSON保存 ---
-                if (fabricCanvas) {
-                    const originalBg = fabricCanvas.backgroundImage;
-                    fabricCanvas.backgroundImage = null;
-                    const json = fabricCanvas.toJSON(['id', 'selectable', 'boxHeight', 'boxBorderWidth', 'boxBorderColor', 'verticalAlign']);
-                    fabricCanvas.backgroundImage = originalBg;
-                    editorPages[currentEditorPageIndex] = { pageIndex: currentEditorPageIndex, fabricJSON: json };
+                let bytesReg = window.cachedFontBytesReg;
+                let bytesBold = window.cachedFontBytesBold;
+
+                // キャッシュがない場合のみダウンロード
+                if (!bytesReg || !bytesBold) {
+                    console.log("Downloading fonts (JP Subset OTF)...");
+                    const promises = [];
+
+                    if (!bytesReg) promises.push(fetchWithTimeout(fontUrlReg, 15000));
+                    else promises.push(Promise.resolve(bytesReg));
+
+                    if (!bytesBold) promises.push(fetchWithTimeout(fontUrlBold, 15000).catch(() => null));
+                    else promises.push(Promise.resolve(bytesBold));
+
+                    const [downloadedReg, downloadedBold] = await Promise.all(promises);
+
+                    // ダウンロード成功したらキャッシュに保存
+                    if (downloadedReg) {
+                        window.cachedFontBytesReg = downloadedReg;
+                        bytesReg = downloadedReg;
+                    }
+                    if (downloadedBold) {
+                        window.cachedFontBytesBold = downloadedBold;
+                        bytesBold = downloadedBold;
+                    }
+                } else {
+                    console.log("Using cached fonts.");
                 }
 
-                // --- 3. PDF準備 ---
-                const pdfDoc = await PDFLib.PDFDocument.load(currentEditorFile.data);
-                pdfDoc.registerFontkit(fontkit);
-
-                // ★変更: メモリキャッシュ機能付きのフォント読み込み
-                // 2回目以降はダウンロードせず、メモリ内のデータを使うため高速化します
-                const fontUrlReg = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Regular.otf';
-                const fontUrlBold = 'https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/SubsetOTF/JP/NotoSansJP-Bold.otf';
-
-                let fontRegular = null;
-                let fontBold = null;
-
-                // グローバルキャッシュの初期化（未定義の場合）
-                // if (!window.cachedFontBytesReg) window.cachedFontBytesReg = null; // Moved to top of function
-                // if (!window.cachedFontBytesBold) window.cachedFontBytesBold = null; // Removed, only check for Reg
-
-                // タイムアウト付きフェッチ関数
-                const fetchWithTimeout = (url, ms) => {
-                    const controller = new AbortController();
-                    const id = setTimeout(() => controller.abort(), ms);
-                    return fetch(url, { signal: controller.signal })
-                        .then(res => {
-                            clearTimeout(id);
-                            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                            return res.arrayBuffer();
-                        });
-                };
-
-                try {
-                    let bytesReg = window.cachedFontBytesReg;
-                    let bytesBold = window.cachedFontBytesBold;
-
-                    // キャッシュがない場合のみダウンロード
-                    if (!bytesReg || !bytesBold) {
-                        console.log("Downloading fonts (JP Subset OTF)...");
-                        const promises = [];
-
-                        if (!bytesReg) promises.push(fetchWithTimeout(fontUrlReg, 15000));
-                        else promises.push(Promise.resolve(bytesReg));
-
-                        if (!bytesBold) promises.push(fetchWithTimeout(fontUrlBold, 15000).catch(() => null));
-                        else promises.push(Promise.resolve(bytesBold));
-
-                        const [downloadedReg, downloadedBold] = await Promise.all(promises);
-
-                        // ダウンロード成功したらキャッシュに保存
-                        if (downloadedReg) {
-                            window.cachedFontBytesReg = downloadedReg;
-                            bytesReg = downloadedReg;
-                        }
-                        if (downloadedBold) {
-                            window.cachedFontBytesBold = downloadedBold;
-                            bytesBold = downloadedBold;
-                        }
-                    } else {
-                        console.log("Using cached fonts.");
-                    }
-
-                    if (bytesReg) {
-                        fontRegular = await pdfDoc.embedFont(bytesReg);
-                        fontBold = bytesBold ? await pdfDoc.embedFont(bytesBold) : fontRegular;
-                    } else {
-                        throw new Error("Regular font download failed.");
-                    }
-
-                } catch (e) {
-                    console.error("Font load error:", e);
-                    alert("日本語フォントの準備に失敗しました。通信環境を確認してください。");
-                    // フォントがないと文字化けしますが、処理自体は続行させたい場合はここでreturnせず、
-                    // 以下の処理でフォント指定を undefined にするなどの分岐が必要です。
-                    return; // 今回は安全のため中断
+                if (bytesReg) {
+                    fontRegular = await pdfDoc.embedFont(bytesReg);
+                    fontBold = bytesBold ? await pdfDoc.embedFont(bytesBold) : fontRegular;
+                } else {
+                    throw new Error("Regular font download failed.");
                 }
 
-                // --- 4. ページ描画ループ ---
-                const pages = pdfDoc.getPages();
+            } catch (e) {
+                console.error("Font load error:", e);
+                alert("日本語フォントの準備に失敗しました。通信環境を確認してください。");
+                // フォントがないと文字化けしますが、処理自体は続行させたい場合はここでreturnせず、
+                // 以下の処理でフォント指定を undefined にするなどの分岐が必要です。
+                return; // 今回は安全のため中断
+            }
 
-                for (let i = 0; i < pages.length; i++) {
-                    if (!editorPages[i] || !editorPages[i].fabricJSON) continue;
+            // --- 4. ページ描画ループ ---
+            const pages = pdfDoc.getPages();
 
-                    const page = pages[i];
-                    const { width, height } = page.getSize();
-                    const scaleFactor = 1 / 1.5;
-                    const fabricData = editorPages[i].fabricJSON;
+            for (let i = 0; i < pages.length; i++) {
+                if (!editorPages[i] || !editorPages[i].fabricJSON) continue;
 
-                    if (fabricData.objects) {
-                        for (const obj of fabricData.objects) {
-                            const x = obj.left * scaleFactor;
-                            const objHeight = (obj.height * obj.scaleY) * scaleFactor;
-                            const objWidth = (obj.width * obj.scaleX) * scaleFactor;
-                            const y = height - (obj.top * scaleFactor) - objHeight;
+                const page = pages[i];
+                const { width, height } = page.getSize();
+                const scaleFactor = 1 / 1.5;
+                const fabricData = editorPages[i].fabricJSON;
 
-                            if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
-                                const fontSize = obj.fontSize * obj.scaleX * scaleFactor;
-                                const useBold = obj.fontWeight === 'bold' && fontBold;
-                                const activeFont = useBold ? fontBold : (fontRegular || undefined);
+                if (fabricData.objects) {
+                    for (const obj of fabricData.objects) {
+                        const x = obj.left * scaleFactor;
+                        const objHeight = (obj.height * obj.scaleY) * scaleFactor;
+                        const objWidth = (obj.width * obj.scaleX) * scaleFactor;
+                        const y = height - (obj.top * scaleFactor) - objHeight;
 
-                                // 背景色 (RGBA対応)
-                                if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
-                                    let color = hexToRgb(obj.backgroundColor);
-                                    let opacity = 1;
-                                    if (!color && obj.backgroundColor.startsWith('rgba')) {
-                                        const match = obj.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-                                        if (match) {
-                                            color = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
-                                            opacity = match[4] ? parseFloat(match[4]) : 1;
-                                        }
-                                    }
-                                    if (color) {
-                                        page.drawRectangle({
-                                            x: x, y: y, width: objWidth, height: objHeight,
-                                            color: color, opacity: opacity
-                                        });
+                        if (obj.type === 'textbox' || obj.type === 'i-text' || obj.type === 'text') {
+                            const fontSize = obj.fontSize * obj.scaleX * scaleFactor;
+                            const useBold = obj.fontWeight === 'bold' && fontBold;
+                            const activeFont = useBold ? fontBold : (fontRegular || undefined);
+
+                            // 背景色 (RGBA対応)
+                            if (obj.backgroundColor && obj.backgroundColor !== 'transparent') {
+                                let color = hexToRgb(obj.backgroundColor);
+                                let opacity = 1;
+                                if (!color && obj.backgroundColor.startsWith('rgba')) {
+                                    const match = obj.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                                    if (match) {
+                                        color = PDFLib.rgb(parseInt(match[1]) / 255, parseInt(match[2]) / 255, parseInt(match[3]) / 255);
+                                        opacity = match[4] ? parseFloat(match[4]) : 1;
                                     }
                                 }
-
-                                // 枠線
-                                if (obj.boxBorderWidth > 0 && obj.boxBorderColor) {
+                                if (color) {
                                     page.drawRectangle({
                                         x: x, y: y, width: objWidth, height: objHeight,
-                                        borderColor: hexToRgb(obj.boxBorderColor),
-                                        borderWidth: obj.boxBorderWidth * scaleFactor,
-                                        color: undefined
+                                        color: color, opacity: opacity
                                     });
                                 }
+                            }
 
-                                // テキスト描画
-                                const textY = height - (obj.top * scaleFactor) - (fontSize * 0.88);
-                                page.drawText(obj.text, {
-                                    x: x, y: textY, size: fontSize,
-                                    font: activeFont, // フォント未取得時は undefined (Standard Font)
-                                    color: hexToRgb(obj.fill),
-                                    lineHeight: obj.lineHeight,
-                                    maxWidth: (obj.type === 'textbox') ? objWidth : undefined,
+                            // 枠線
+                            if (obj.boxBorderWidth > 0 && obj.boxBorderColor) {
+                                page.drawRectangle({
+                                    x: x, y: y, width: objWidth, height: objHeight,
+                                    borderColor: hexToRgb(obj.boxBorderColor),
+                                    borderWidth: obj.boxBorderWidth * scaleFactor,
+                                    color: undefined
+                                });
+                            }
+
+                            // テキスト描画
+                            const textY = height - (obj.top * scaleFactor) - (fontSize * 0.88);
+                            page.drawText(obj.text, {
+                                x: x, y: textY, size: fontSize,
+                                font: activeFont, // フォント未取得時は undefined (Standard Font)
+                                color: hexToRgb(obj.fill),
+                                lineHeight: obj.lineHeight,
+                                maxWidth: (obj.type === 'textbox') ? objWidth : undefined,
+                            });
+
+                            // 下線
+                            if (obj.underline) {
+                                const lineY = textY - 2;
+                                page.drawLine({
+                                    start: { x: x, y: lineY },
+                                    end: { x: x + objWidth, y: lineY },
+                                    thickness: Math.max(1, fontSize / 15),
+                                    color: hexToRgb(obj.fill)
+                                });
+                            }
+
+                        } else if (['rect', 'circle', 'ellipse'].includes(obj.type)) {
+                            // 図形の描画 (既存ロジック)
+                            const op = {
+                                borderColor: hexToRgb(obj.stroke),
+                                borderWidth: obj.strokeWidth * scaleFactor,
+                                color: hexToRgb(obj.fill)
+                            };
+
+                            if (obj.type === 'rect') {
+                                page.drawRectangle({ x: x, y: y, width: objWidth, height: objHeight, ...op });
+                            } else if (obj.type === 'circle' || obj.type === 'ellipse') {
+                                page.drawEllipse({
+                                    x: x + objWidth / 2, y: y + objHeight / 2,
+                                    xRadius: obj.rx * obj.scaleX * scaleFactor,
+                                    yRadius: obj.ry * obj.scaleY * scaleFactor,
+                                    ...op
                                 });
 
-                                // 下線
-                                if (obj.underline) {
-                                    const lineY = textY - 2;
-                                    page.drawLine({
-                                        start: { x: x, y: lineY },
-                                        end: { x: x + objWidth, y: lineY },
-                                        thickness: Math.max(1, fontSize / 15),
-                                        color: hexToRgb(obj.fill)
-                                    });
-                                }
-
-                            } else if (['rect', 'circle', 'ellipse'].includes(obj.type)) {
-                                // 図形の描画 (既存ロジック)
-                                const op = {
-                                    borderColor: hexToRgb(obj.stroke),
-                                    borderWidth: obj.strokeWidth * scaleFactor,
-                                    color: hexToRgb(obj.fill)
-                                };
-
-                                if (obj.type === 'rect') {
-                                    page.drawRectangle({ x: x, y: y, width: objWidth, height: objHeight, ...op });
-                                } else if (obj.type === 'circle' || obj.type === 'ellipse') {
-                                    page.drawEllipse({
-                                        x: x + objWidth / 2, y: y + objHeight / 2,
-                                        xRadius: obj.rx * obj.scaleX * scaleFactor,
-                                        yRadius: obj.ry * obj.scaleY * scaleFactor,
-                                        ...op
-                                    });
-
-                                }
                             }
                         }
                     }
                 }
+            }
 
 
 
-                const pdfBytes = await pdfDoc.save();
-                downloadFile(pdfBytes, "edited_document.pdf");
+            const pdfBytes = await pdfDoc.save();
+            downloadFile(pdfBytes, "edited_document.pdf");
 
-            } catch (err) {
-                console.error(err);
-                alert("保存処理中にエラーが発生しました: " + err.message);
-            } finally {
-                if (btnSave) {
-                    btnSave.disabled = false;
-                    btnSave.innerHTML = originalBtnText;
-                    document.body.style.cursor = 'default';
-                }
+        } catch (err) {
+            console.error(err);
+            alert("保存処理中にエラーが発生しました: " + err.message);
+        } finally {
+            if (btnSave) {
+                btnSave.disabled = false;
+                btnSave.innerHTML = originalBtnText;
+                document.body.style.cursor = 'default';
             }
         }
     }
+
 
     function hexToRgb(hex) {
         if (!hex) return undefined;
