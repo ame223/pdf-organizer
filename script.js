@@ -2280,8 +2280,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             } else if (obj.type === 'circle' || obj.type === 'ellipse') {
                                 page.drawEllipse({
                                     x: x + objWidth / 2, y: y + objHeight / 2,
-                                    xRadius: obj.rx * obj.scaleX * scaleFactor,
-                                    yRadius: obj.ry * obj.scaleY * scaleFactor,
+                                    xRadius: objWidth / 2,
+                                    yRadius: objHeight / 2,
                                     ...op
                                 });
 
