@@ -1152,27 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fabricCanvas.on('selection:updated', onSelectionChanged);
             fabricCanvas.on('selection:cleared', onSelectionCleared);
 
-            // ★修正: リサイズ完了時にスケールを内部プロパティに焼き付ける（保存時の巨大化バグ防止）
-            fabricCanvas.on('object:modified', (e) => {
-                const obj = e.target;
-                if (obj.type === 'ellipse') {
-                    // rx, ry に現在のスケールを適用
-                    obj.rx *= obj.scaleX;
-                    obj.ry *= obj.scaleY;
-
-                    // width, height も更新（バウンディングボックス用）
-                    obj.width = obj.rx * 2;
-                    obj.height = obj.ry * 2;
-
-                    // スケールを 1.0 にリセット
-                    obj.scaleX = 1;
-                    obj.scaleY = 1;
-
-                    // 座標再計算
-                    obj.setCoords();
-                }
-                saveHistory();
-            });
+            fabricCanvas.on('object:modified', saveHistory);
             fabricCanvas.on('object:added', saveHistory);
             fabricCanvas.on('object:removed', saveHistory);
 
@@ -2239,11 +2219,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     for (const obj of fabricData.objects) {
                         const x = obj.left * scaleFactor;
 
-                        // 【修正】オブジェクトタイプに関わらず、見た目の幅・高さを基準にする（堅牢性向上）
-                        // Fabric.jsの仕様上、rx/ryとscaleの整合性が崩れている場合があるため、
-                        // 常に (width * scaleX) を正とすることで見た目通りのサイズを確保する
-                        objWidth = (obj.width * obj.scaleX) * scaleFactor;
-                        objHeight = (obj.height * obj.scaleY) * scaleFactor;
+                        // 【再修正】オブジェクトタイプ文字列だけに依存せず、プロパティの存在を優先して寸法を決定する
+                        // これにより、Typeが'custom'になっていたり、EllipseなのにRxが無いなどの不整合な状態でも
+                        // 最も信頼できるプロパティを使って計算を行う。
+
+                        let finalWidth, finalHeight;
+
+                        // 1. Ellipse (rx, ryを持っている場合を最優先)
+                        if (typeof obj.rx === 'number' && typeof obj.ry === 'number') {
+                            finalWidth = obj.rx * 2 * obj.scaleX;
+                            finalHeight = obj.ry * 2 * obj.scaleY;
+                        }
+                        // 2. Circle (radiusを持っている場合)
+                        else if (typeof obj.radius === 'number') {
+                            finalWidth = obj.radius * 2 * obj.scaleX;
+                            finalHeight = obj.radius * 2 * obj.scaleY;
+                        }
+                        // 3. Fallback (width, height)
+                        else {
+                            finalWidth = obj.width * obj.scaleX;
+                            finalHeight = obj.height * obj.scaleY;
+                        }
+
+                        const objWidth = finalWidth * scaleFactor;
+                        const objHeight = finalHeight * scaleFactor;
 
                         // 座標計算（Y座標はPDFの座標系に合わせて反転。Fabricのtopは上端なので高さを引く）
                         const y = height - (obj.top * scaleFactor) - objHeight;
@@ -2325,6 +2324,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 y: y + (objHeight / 2), // 下端 + 半径 = 中心Y
                                 xRadius: objWidth / 2,  // 幅 / 2 = 半径X
                                 yRadius: objHeight / 2, // 高さ / 2 = 半径Y
+                                rotate: PDFLib.degrees(obj.angle || 0), // ★回転を追加
                                 borderColor: hexToRgb(obj.stroke),
                                 borderWidth: obj.strokeWidth * scaleFactor,
                                 color: hexToRgb(obj.fill)
